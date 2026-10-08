@@ -9,6 +9,8 @@ import {
   Layers,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -24,6 +26,8 @@ interface SidebarProps {
   onRenombrarMateria: (id: string, nuevoNombre: string) => void;
   onCambiarColorMateria: (id: string, color: string) => void;
   onReordenarMaterias: (idArrastrado: string, idDestino: string) => void;
+  modoOscuro: boolean;
+  onToggleModoOscuro: () => void;
 }
 
 const PALETA_RAPIDA = [
@@ -58,6 +62,8 @@ function Sidebar({
   onRenombrarMateria,
   onCambiarColorMateria,
   onReordenarMaterias,
+  modoOscuro,
+  onToggleModoOscuro,
 }: SidebarProps) {
   const [colapsada, setColapsada] = useLocalStorage<boolean>('sidebar-colapsada', false);
   const [nuevaMateria, setNuevaMateria] = useState('');
@@ -312,6 +318,19 @@ function Sidebar({
               ))}
             </div>
           </div>
+
+          {/* Toggle de Modo Oscuro / Claro en vista expandida */}
+          <div className="sidebar-tema-seccion">
+            <button
+              type="button"
+              className="btn-tema-toggle"
+              onClick={onToggleModoOscuro}
+              title={modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            >
+              {modoOscuro ? <Sun size={15} /> : <Moon size={15} />}
+              <span>{modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            </button>
+          </div>
         </>
       ) : (
         /* ================= VISTA COMPACTA / PEQUEÑA ================= */
@@ -363,6 +382,14 @@ function Sidebar({
           </ul>
 
           <div className="sidebar-footer-colapsada">
+            <button
+              type="button"
+              className="btn-mini-tema-toggle"
+              onClick={onToggleModoOscuro}
+              title={modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            >
+              {modoOscuro ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <button
               type="button"
               className="btn-toggle-sidebar btn-expandir-footer"

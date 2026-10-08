@@ -11,6 +11,8 @@ import {
   Edit3,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import EditorTema from './EditorTema';
@@ -22,6 +24,8 @@ interface PanelMateriaProps {
   onEliminarTema: (materiaId: string, temaId: string) => void;
   onRenombrarTema: (materiaId: string, temaId: string, nuevoNombre: string) => void;
   onReordenarTemas: (materiaId: string, idArrastrado: string, idDestino: string) => void;
+  modoOscuro?: boolean;
+  onToggleModoOscuro?: () => void;
 }
 
 function PanelMateria({
@@ -31,6 +35,8 @@ function PanelMateria({
   onEliminarTema,
   onRenombrarTema,
   onReordenarTemas,
+  modoOscuro,
+  onToggleModoOscuro,
 }: PanelMateriaProps) {
   const [nuevoTema, setNuevoTema] = useState('');
   const [temaSeleccionadoId, setTemaSeleccionadoId] = useState<string | null>(null);
@@ -79,15 +85,28 @@ function PanelMateria({
               : `${materia.temas.length} temas registrados`}
           </p>
         </div>
-        <button
-          type="button"
-          className={`btn-toggle-temas ${temasColapsados ? 'activo' : ''}`}
-          onClick={() => setTemasColapsados(!temasColapsados)}
-          title={temasColapsados ? "Mostrar lista de temas" : "Ocultar lista de temas para ver más apuntes"}
-        >
-          {temasColapsados ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-          <span>{temasColapsados ? "Mostrar Temas" : "Ocultar Temas"}</span>
-        </button>
+        <div className="banner-acciones">
+          {onToggleModoOscuro && (
+            <button
+              type="button"
+              className="btn-tema-header"
+              onClick={onToggleModoOscuro}
+              title={modoOscuro ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+            >
+              {modoOscuro ? <Sun size={15} /> : <Moon size={15} />}
+              <span>{modoOscuro ? "Claro" : "Oscuro"}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className={`btn-toggle-temas ${temasColapsados ? 'activo' : ''}`}
+            onClick={() => setTemasColapsados(!temasColapsados)}
+            title={temasColapsados ? "Mostrar lista de temas" : "Ocultar lista de temas para ver más apuntes"}
+          >
+            {temasColapsados ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+            <span>{temasColapsados ? "Mostrar Temas" : "Ocultar Temas"}</span>
+          </button>
+        </div>
       </header>
 
       <div className="layout-materia">

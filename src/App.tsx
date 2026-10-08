@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Table, List, Bold, Sparkles, ArrowRight } from 'lucide-react';
 import type { Materia } from './types';
 import Sidebar from './components/Sidebar';
@@ -67,6 +67,26 @@ function App() {
     MATERIAS_POR_DEFECTO
   );
   const [materiaSeleccionadaId, setMateriaSeleccionadaId] = useState<string | null>(null);
+
+  const valorInicialOscuro =
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+
+  const [modoOscuro, setModoOscuro] = useLocalStorage<boolean>(
+    'apuntes-modo-oscuro',
+    valorInicialOscuro
+  );
+
+  useEffect(() => {
+    if (modoOscuro) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark-mode');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark-mode');
+    }
+  }, [modoOscuro]);
 
   const materiaSeleccionada = materias.find((m) => m.id === materiaSeleccionadaId) ?? null;
 
@@ -187,17 +207,19 @@ const materiasFiltradas = materias.filter((m) =>
   return (
     <div className="app">
       <Sidebar
-  materias={materiasFiltradas}
-  materiaSeleccionadaId={materiaSeleccionadaId}
-  busqueda={busqueda}
-  onBuscar={setBusqueda}
-  onSeleccionarMateria={setMateriaSeleccionadaId}
-  onAgregarMateria={agregarMateria}
-  onEliminarMateria={eliminarMateria}
-  onRenombrarMateria={renombrarMateria}
-  onCambiarColorMateria={cambiarColorMateria}
-  onReordenarMaterias={reordenarMaterias}
-/>
+        materias={materiasFiltradas}
+        materiaSeleccionadaId={materiaSeleccionadaId}
+        busqueda={busqueda}
+        onBuscar={setBusqueda}
+        onSeleccionarMateria={setMateriaSeleccionadaId}
+        onAgregarMateria={agregarMateria}
+        onEliminarMateria={eliminarMateria}
+        onRenombrarMateria={renombrarMateria}
+        onCambiarColorMateria={cambiarColorMateria}
+        onReordenarMaterias={reordenarMaterias}
+        modoOscuro={modoOscuro}
+        onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
+      />
       <main className="contenido">
         {materiaSeleccionada ? (
           <PanelMateria
@@ -207,6 +229,8 @@ const materiasFiltradas = materias.filter((m) =>
             onEliminarTema={eliminarTema}
             onRenombrarTema={renombrarTema}
             onReordenarTemas={reordenarTemas}
+            modoOscuro={modoOscuro}
+            onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
           />
         ) : (
           <div className="bienvenida-dashboard">
