@@ -20,6 +20,10 @@ import {
   Check,
   Clock,
   FileText,
+  Image as ImageIcon,
+  Upload,
+  Link as LinkIcon,
+  X as CloseIcon,
 } from 'lucide-react';
 import type { Tema } from '../types';
 
@@ -35,10 +39,64 @@ marked.setOptions({
   breaks: true,
 });
 
+/**
+ * Optimiza y redimensiona imágenes del cliente para que no sobrecarguen localStorage.
+ * Convierte a WebP (o JPEG) manteniendo alta calidad y reduciendo drásticamente el peso (50-100KB).
+ */
+function optimizarImagen(
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 1200,
+  calidad = 0.82
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            maxHeight = height;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/webp', calidad);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
   const [modo, setModo] = useState<ModoVista>('split');
   const [copiado, setCopiado] = useState(false);
+  const [mostrarModalImagen, setMostrarModalImagen] = useState(false);
+  const [urlImagen, setUrlImagen] = useState('');
+  const [descImagen, setDescImagen] = useState('');
+  const [cargandoImagen, setCargandoImagen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fecha = new Date(tema.fechaEdicion);
   const fechaFormateada = fecha.toLocaleDateString('es-MX', {
@@ -364,6 +422,88 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
         textareaRef.current.setSelectionRange(nuevaPosicion, nuevaPosicion);
       }
     });
+  };
+
+  const insertarTextoEnCursor = (textoAInsertar: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const textoActual = tema.contenido;
+
+    const prefijoEspacio = start > 0 && !textoActual.endsWith('\n', start) ? '\n\n' : '';
+    const sufijoEspacio =
+      end < textoActual.length && !textoActual.startsWith('\n', end) ? '\n\n' : '\n';
+    const insercion = `${prefijoEspacio}${textoAInsertar}${sufijoEspacio}`;
+
+    const nuevo = textoActual.substring(0, start) + insercion + textoActual.substring(end);
+    onCambiarContenido(nuevo);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const pos = start + insercion.length;
+        textareaRef.current.setSelectionRange(pos, pos);
+      }
+    });
+  };
+
+  const procesarArchivoImagen = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    try {
+      setCargandoImagen(true);
+      const dataUrl = await optimizarImagen(file);
+      const nombreLimpio = file.name.replace(/\.[^/.]+$/, '') || 'Imagen';
+      insertarTextoEnCursor(`![${nombreLimpio}](${dataUrl})`);
+      setMostrarModalImagen(false);
+      setUrlImagen('');
+      setDescImagen('');
+    } catch (err) {
+      console.error('Error al procesar la imagen:', err);
+    } finally {
+      setCargandoImagen(false);
+    }
+  };
+
+  const handleConfirmarUrlImagen = () => {
+    const url = urlImagen.trim();
+    if (!url) return;
+    const desc = descImagen.trim() || 'Imagen';
+    insertarTextoEnCursor(`![${desc}](${url})`);
+    setMostrarModalImagen(false);
+    setUrlImagen('');
+    setDescImagen('');
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          procesarArchivoImagen(file);
+          return;
+        }
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        e.preventDefault();
+        procesarArchivoImagen(file);
+        return;
+      }
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -728,6 +868,14 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
             <button
               type="button"
               className="btn-tool"
+              onClick={() => setMostrarModalImagen(true)}
+              title="Insertar Imagen (desde archivo, enlace o arrastrar)"
+            >
+              <ImageIcon size={15} />
+            </button>
+            <button
+              type="button"
+              className="btn-tool"
               onClick={() => aplicarFormatoLineas('quote')}
               title="Cita en bloque (aplica a cada línea seleccionada)"
             >
@@ -762,7 +910,10 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
               value={tema.contenido}
               onChange={(e) => onCambiarContenido(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Escribe aquí tus apuntes de clase...&#10;&#10;💡 Usa la barra de herramientas para agregar tablas, viñetas, negritas, numeraciones y citas."
+              onPaste={handlePaste}
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              placeholder="Escribe aquí tus apuntes de clase...&#10;&#10;💡 Puedes insertar imágenes desde la barra, arrastrándolas o pegándolas directamente con Ctrl+V."
               spellCheck={false}
             />
           </div>
@@ -798,9 +949,113 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
           )}
         </div>
         <div className="status-ayuda">
-          <span>Markdown GFM activo</span>
+          <span>Markdown GFM activo • Soporta imágenes</span>
         </div>
       </footer>
+
+      {/* Modal para insertar imágenes */}
+      {mostrarModalImagen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setMostrarModalImagen(false)}
+        >
+          <div
+            className="modal-contenedor"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="modal-header">
+              <div className="modal-titulo-wrapper">
+                <ImageIcon size={18} />
+                <span>Insertar Imagen</span>
+              </div>
+              <button
+                type="button"
+                className="btn-cerrar-modal"
+                onClick={() => setMostrarModalImagen(false)}
+                title="Cerrar ventana"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </header>
+
+            <div className="modal-body">
+              {/* Opción 1: Archivo local */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) procesarArchivoImagen(file);
+                }}
+              />
+              <div
+                className="zona-subir-archivo"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="zona-subir-icono">
+                  <Upload size={22} />
+                </div>
+                <span className="zona-subir-texto">
+                  {cargandoImagen
+                    ? 'Procesando y optimizando imagen...'
+                    : 'Subir imagen desde tu equipo'}
+                </span>
+                <span className="zona-subir-pista">
+                  PNG, JPG, WebP o GIF (o pega capturas con Ctrl+V)
+                </span>
+              </div>
+
+              <div className="separador-modal">o desde enlace web</div>
+
+              {/* Opción 2: URL de internet */}
+              <div className="campo-modal-grupo">
+                <label className="campo-modal-label">Enlace URL de la imagen:</label>
+                <input
+                  type="url"
+                  className="campo-modal-input"
+                  placeholder="https://ejemplo.com/diagrama.png"
+                  value={urlImagen}
+                  onChange={(e) => setUrlImagen(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConfirmarUrlImagen()}
+                />
+              </div>
+
+              <div className="campo-modal-grupo">
+                <label className="campo-modal-label">Descripción o pie de foto (opcional):</label>
+                <input
+                  type="text"
+                  className="campo-modal-input"
+                  placeholder="Ej. Diagrama de arquitectura"
+                  value={descImagen}
+                  onChange={(e) => setDescImagen(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConfirmarUrlImagen()}
+                />
+              </div>
+            </div>
+
+            <footer className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancelar"
+                onClick={() => setMostrarModalImagen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirmar"
+                onClick={handleConfirmarUrlImagen}
+                disabled={!urlImagen.trim() || cargandoImagen}
+              >
+                <LinkIcon size={14} />
+                <span>Insertar enlace</span>
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
