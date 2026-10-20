@@ -33,6 +33,7 @@ interface SidebarProps {
   onCambiarColorMateria: (id: string, color: string) => void;
   onReordenarMaterias: (idArrastrado: string, idDestino: string) => void;
   onRestaurarMaterias?: (nuevasMaterias: Materia[]) => void;
+  onAbrirBusquedaGlobal?: () => void;
   modoOscuro: boolean;
   onToggleModoOscuro: () => void;
 }
@@ -71,6 +72,7 @@ function Sidebar({
   onReordenarMaterias,
   todasLasMaterias,
   onRestaurarMaterias,
+  onAbrirBusquedaGlobal,
   modoOscuro,
   onToggleModoOscuro,
 }: SidebarProps) {
@@ -246,6 +248,20 @@ function Sidebar({
 
       {!colapsada ? (
         <>
+          {/* Botón rápido de Búsqueda Global (Ctrl + K) */}
+          {onAbrirBusquedaGlobal && (
+            <button
+              type="button"
+              className="btn-trigger-busqueda-global"
+              onClick={onAbrirBusquedaGlobal}
+              title="Buscar en todos los apuntes y contenidos (Ctrl + K)"
+            >
+              <Search size={14} className="icono-busqueda-trigger" />
+              <span className="texto-busqueda-trigger">Buscar en todo...</span>
+              <kbd className="kbd-atajo-global">Ctrl K</kbd>
+            </button>
+          )}
+
           {/* Buscador */}
           <div className="sidebar-buscador-wrapper">
             <Search size={15} className="icono-buscador" />
@@ -444,6 +460,17 @@ function Sidebar({
       ) : (
         /* ================= VISTA COMPACTA / PEQUEÑA ================= */
         <div className="sidebar-cuerpo-colapsado">
+          {onAbrirBusquedaGlobal && (
+            <button
+              type="button"
+              className="btn-mini-busqueda-global"
+              onClick={onAbrirBusquedaGlobal}
+              title="Buscar en todos los apuntes (Ctrl + K)"
+            >
+              <Search size={16} />
+            </button>
+          )}
+
           <button
             type="button"
             className="btn-mini-agregar"

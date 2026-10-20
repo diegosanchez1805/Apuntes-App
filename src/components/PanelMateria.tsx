@@ -19,6 +19,8 @@ import EditorTema from './EditorTema';
 
 interface PanelMateriaProps {
   materia: Materia;
+  temaSeleccionadoId?: string | null;
+  onSeleccionarTema?: (id: string | null) => void;
   onAgregarTema: (materiaId: string, nombreTema: string) => void;
   onActualizarContenido: (materiaId: string, temaId: string, nuevoContenido: string) => void;
   onEliminarTema: (materiaId: string, temaId: string) => void;
@@ -30,6 +32,8 @@ interface PanelMateriaProps {
 
 function PanelMateria({
   materia,
+  temaSeleccionadoId: propTemaSeleccionadoId,
+  onSeleccionarTema: propOnSeleccionarTema,
   onAgregarTema,
   onActualizarContenido,
   onEliminarTema,
@@ -39,7 +43,12 @@ function PanelMateria({
   onToggleModoOscuro,
 }: PanelMateriaProps) {
   const [nuevoTema, setNuevoTema] = useState('');
-  const [temaSeleccionadoId, setTemaSeleccionadoId] = useState<string | null>(null);
+  const [localTemaSeleccionadoId, setLocalTemaSeleccionadoId] = useState<string | null>(null);
+
+  const temaSeleccionadoId =
+    propTemaSeleccionadoId !== undefined ? propTemaSeleccionadoId : localTemaSeleccionadoId;
+  const setTemaSeleccionadoId = propOnSeleccionarTema || setLocalTemaSeleccionadoId;
+
   const [busquedaTema, setBusquedaTema] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEditado, setNombreEditado] = useState('');

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Table, List, Bold, Sparkles, ArrowRight } from 'lucide-react';
+import { BookOpen, Table, List, Sparkles, ArrowRight, Search, Sigma } from 'lucide-react';
 import type { Materia } from './types';
 import Sidebar from './components/Sidebar';
 import PanelMateria from './components/PanelMateria';
+import ModalBusquedaGlobal from './components/ModalBusquedaGlobal';
 import useLocalStorage from './hooks/useLocalStorage';
 
 
@@ -60,6 +61,19 @@ def in_order(nodo):
         in_order(nodo.der)
 \`\`\`
 
+### Fórmulas Matemáticas de Complejidad (LaTeX)
+La altura máxima $h$ de un árbol binario balanceado de $n$ nodos cumple:
+
+$$
+h \\le \\lfloor \\log_2(n) \\rfloor + 1
+$$
+
+Y la sumatoria de nodos en un árbol binario completo de altura $h$:
+
+$$
+N(h) = \\sum_{i=0}^{h} 2^i = 2^{h+1} - 1
+$$
+
 ### Tareas de Estudio (Checklist)
 - [x] Repasar inserción recursiva
 - [x] Analizar rotaciones simples a la izquierda y derecha
@@ -82,6 +96,25 @@ function App() {
     MATERIAS_POR_DEFECTO
   );
   const [materiaSeleccionadaId, setMateriaSeleccionadaId] = useState<string | null>(null);
+  const [temaSeleccionadoId, setTemaSeleccionadoId] = useState<string | null>(null);
+  const [modalBusquedaAbierto, setModalBusquedaAbierto] = useState(false);
+
+  // Atajo global Ctrl+K para abrir la paleta de búsqueda
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setModalBusquedaAbierto((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const handleSeleccionarResultadoBusqueda = (materiaId: string, temaId: string) => {
+    setMateriaSeleccionadaId(materiaId);
+    setTemaSeleccionadoId(temaId);
+  };
 
   const valorInicialOscuro =
     typeof window !== 'undefined' && window.matchMedia
@@ -228,12 +261,16 @@ const materiasFiltradas = materias.filter((m) =>
         materiaSeleccionadaId={materiaSeleccionadaId}
         busqueda={busqueda}
         onBuscar={setBusqueda}
-        onSeleccionarMateria={setMateriaSeleccionadaId}
+        onSeleccionarMateria={(id) => {
+          setMateriaSeleccionadaId(id);
+          setTemaSeleccionadoId(null);
+        }}
         onAgregarMateria={agregarMateria}
         onEliminarMateria={eliminarMateria}
         onRenombrarMateria={renombrarMateria}
         onCambiarColorMateria={cambiarColorMateria}
         onReordenarMaterias={reordenarMaterias}
+        onAbrirBusquedaGlobal={() => setModalBusquedaAbierto(true)}
         modoOscuro={modoOscuro}
         onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
       />
@@ -241,6 +278,8 @@ const materiasFiltradas = materias.filter((m) =>
         {materiaSeleccionada ? (
           <PanelMateria
             materia={materiaSeleccionada}
+            temaSeleccionadoId={temaSeleccionadoId}
+            onSeleccionarTema={setTemaSeleccionadoId}
             onAgregarTema={agregarTema}
             onActualizarContenido={actualizarContenidoTema}
             onEliminarTema={eliminarTema}
@@ -258,8 +297,22 @@ const materiasFiltradas = materias.filter((m) =>
               </div>
               <h2>¡Te damos la bienvenida a tus Apuntes!</h2>
               <p className="bienvenida-desc">
-                Crea y organiza tus materias, toma notas con formato enriquecido, tablas, listas, viñetas y mantén tus apuntes sincronizados automáticamente.
+                Crea y organiza tus materias, toma notas con formato enriquecido, fórmulas LaTeX, tablas, listas y mantén tus apuntes sincronizados automáticamente.
               </p>
+
+              {/* Botón directo de búsqueda global */}
+              <div className="bienvenida-busqueda-rapida">
+                <button
+                  type="button"
+                  className="btn-busqueda-dashboard"
+                  onClick={() => setModalBusquedaAbierto(true)}
+                  title="Abrir buscador global (Ctrl + K)"
+                >
+                  <Search size={18} className="icono-busqueda-dash" />
+                  <span className="texto-busqueda-dash">Buscar cualquier concepto, fórmula o apunte...</span>
+                  <kbd className="kbd-busqueda-dash">Ctrl + K</kbd>
+                </button>
+              </div>
 
               <div className="caracteristicas-grid">
                 <div className="caracteristica-card">
@@ -271,19 +324,19 @@ const materiasFiltradas = materias.filter((m) =>
                 </div>
 
                 <div className="caracteristica-card">
+                  <div className="caracteristica-icono icono-formato">
+                    <Sigma size={20} />
+                  </div>
+                  <h4>Fórmulas Matemáticas (LaTeX)</h4>
+                  <p>Renderiza ecuaciones algebraicas, integrales, matrices y límites con tipografía KaTeX.</p>
+                </div>
+
+                <div className="caracteristica-card">
                   <div className="caracteristica-icono icono-lista">
                     <List size={20} />
                   </div>
                   <h4>Viñetas y Numeración</h4>
                   <p>Organiza tus ideas con listas con puntos, listas numeradas y checklists de tareas.</p>
-                </div>
-
-                <div className="caracteristica-card">
-                  <div className="caracteristica-icono icono-formato">
-                    <Bold size={20} />
-                  </div>
-                  <h4>Negritas y Estilos</h4>
-                  <p>Resalta conceptos clave en negrita, cursiva, títulos, citas y bloques de código.</p>
                 </div>
               </div>
 
@@ -296,7 +349,10 @@ const materiasFiltradas = materias.filter((m) =>
                         key={m.id}
                         type="button"
                         className="chip-materia"
-                        onClick={() => setMateriaSeleccionadaId(m.id)}
+                        onClick={() => {
+                          setMateriaSeleccionadaId(m.id);
+                          setTemaSeleccionadoId(null);
+                        }}
                         style={{ borderLeftColor: m.color }}
                       >
                         <span
@@ -319,6 +375,14 @@ const materiasFiltradas = materias.filter((m) =>
           </div>
         )}
       </main>
+
+      {/* Modal de Búsqueda Global (Ctrl + K) */}
+      <ModalBusquedaGlobal
+        isOpen={modalBusquedaAbierto}
+        onClose={() => setModalBusquedaAbierto(false)}
+        materias={materias}
+        onSeleccionarResultado={handleSeleccionarResultadoBusqueda}
+      />
     </div>
   );
 }

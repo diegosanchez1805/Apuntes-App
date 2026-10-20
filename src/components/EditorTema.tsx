@@ -26,9 +26,12 @@ import {
   X as CloseIcon,
   Printer,
   Download,
+  Sigma,
 } from 'lucide-react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import type { Tema } from '../types';
 import {
   guardarImagen,
@@ -47,6 +50,64 @@ type ModoVista = 'split' | 'edit' | 'preview';
 marked.use({
   gfm: true,
   breaks: true,
+  extensions: [
+    {
+      name: 'blockMath',
+      level: 'block',
+      start(src: string) {
+        return src.indexOf('$$');
+      },
+      tokenizer(src: string) {
+        const match = src.match(/^\$\$([\s\S]+?)\$\$/);
+        if (match) {
+          return {
+            type: 'blockMath',
+            raw: match[0],
+            text: match[1].trim(),
+          };
+        }
+      },
+      renderer(token: any) {
+        try {
+          const rendered = katex.renderToString(token.text, {
+            displayMode: true,
+            throwOnError: false,
+          });
+          return `<div class="katex-display-block">${rendered}</div>\n`;
+        } catch {
+          return `<div class="katex-error">${token.raw}</div>\n`;
+        }
+      },
+    },
+    {
+      name: 'inlineMath',
+      level: 'inline',
+      start(src: string) {
+        return src.indexOf('$');
+      },
+      tokenizer(src: string) {
+        if (src.startsWith('$$')) return;
+        const match = src.match(/^\$([^\$\n\s](?:[^\$\n]*?[^\$\n\s])?)\$/);
+        if (match) {
+          return {
+            type: 'inlineMath',
+            raw: match[0],
+            text: match[1],
+          };
+        }
+      },
+      renderer(token: any) {
+        try {
+          return katex.renderToString(token.text, {
+            displayMode: false,
+            throwOnError: false,
+          });
+        } catch {
+          return token.raw;
+        }
+      },
+    },
+  ],
   renderer: {
     code({ text, lang }: { text: string; lang?: string }) {
       const language = lang && hljs.getLanguage(lang) ? lang.toLowerCase() : '';
@@ -179,8 +240,31 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     const contenidoConImagenes = resolverReferenciasImagenes(tema.contenido);
     const parsed = marked.parse(contenidoConImagenes) as string;
     return DOMPurify.sanitize(parsed, {
-      ADD_TAGS: ['button', 'span'],
-      ADD_ATTR: ['data-code', 'class', 'target'],
+      USE_PROFILES: { html: true, mathMl: true, svg: true },
+      ADD_TAGS: [
+        'button',
+        'span',
+        'math',
+        'annotation',
+        'semantics',
+        'mrow',
+        'mi',
+        'mo',
+        'mn',
+        'msup',
+        'msub',
+        'mfrac',
+        'mover',
+        'munder',
+        'msqrt',
+        'mroot',
+        'mtable',
+        'mtr',
+        'mtd',
+        'mspace',
+        'mtext',
+      ],
+      ADD_ATTR: ['data-code', 'class', 'target', 'style', 'aria-hidden'],
     });
   }, [tema.contenido, imagenesVersion]);
 
@@ -484,6 +568,21 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     });
   };
 
+  const insertarFormulaLatex = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const sel = tema.contenido.substring(start, end);
+    if (sel.includes('\n')) {
+      aplicarFormato('$$\n', '\n$$', 'f(x) = \\int_{a}^{b} g(t) dt');
+    } else if (sel.length > 0) {
+      aplicarFormato('$', '$', '');
+    } else {
+      aplicarFormato('$', '$', 'x^2 + y^2 = r^2');
+    }
+  };
+
   const insertarTextoEnCursor = (textoAInsertar: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -581,6 +680,11 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
       e.preventDefault();
       aplicarFormato('*', '*', 'cursiva');
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      insertarFormulaLatex();
       return;
     }
 
@@ -1012,6 +1116,14 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
               title="Bloque de código"
             >
               <Code size={15} />
+            </button>
+            <button
+              type="button"
+              className="btn-tool"
+              onClick={insertarFormulaLatex}
+              title="Fórmula matemática LaTeX ($x$ o $$f(x)$$) (Ctrl+M)"
+            >
+              <Sigma size={15} />
             </button>
             <button
               type="button"
