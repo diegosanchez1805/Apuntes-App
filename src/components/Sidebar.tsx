@@ -11,12 +11,18 @@ import {
   PanelLeftOpen,
   Sun,
   Moon,
+  ShieldCheck,
+  Download,
+  Upload,
+  Check,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { exportarTodasLasImagenes, importarImagenes } from '../utils/imageStore';
 
 interface SidebarProps {
   materias: Materia[];
+  todasLasMaterias?: Materia[];
   materiaSeleccionadaId: string | null;
   busqueda: string;
   onBuscar: (texto: string) => void;
@@ -26,6 +32,7 @@ interface SidebarProps {
   onRenombrarMateria: (id: string, nuevoNombre: string) => void;
   onCambiarColorMateria: (id: string, color: string) => void;
   onReordenarMaterias: (idArrastrado: string, idDestino: string) => void;
+  onRestaurarMaterias?: (nuevasMaterias: Materia[]) => void;
   modoOscuro: boolean;
   onToggleModoOscuro: () => void;
 }
@@ -62,6 +69,8 @@ function Sidebar({
   onRenombrarMateria,
   onCambiarColorMateria,
   onReordenarMaterias,
+  todasLasMaterias,
+  onRestaurarMaterias,
   modoOscuro,
   onToggleModoOscuro,
 }: SidebarProps) {
@@ -70,7 +79,98 @@ function Sidebar({
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEditado, setNombreEditado] = useState('');
   const [arrastrandoId, setArrastrandoId] = useState<string | null>(null);
+  const [mostrarModalRespaldo, setMostrarModalRespaldo] = useState(false);
+  const [exportando, setExportando] = useState(false);
+  const [mensajeRespaldo, setMensajeRespaldo] = useState<string | null>(null);
   const inputAgregarRef = useRef<HTMLInputElement>(null);
+  const inputArchivoRespaldoRef = useRef<HTMLInputElement>(null);
+
+  const materiasParaRespaldo = todasLasMaterias || materias;
+  const totalTemasRespaldo = materiasParaRespaldo.reduce((acc, m) => acc + m.temas.length, 0);
+
+  const handleDescargarRespaldo = async () => {
+    try {
+      setExportando(true);
+      const imagenes = await exportarTodasLasImagenes();
+      const datosRespaldo = {
+        app: 'apuntes-app',
+        version: '1.0',
+        fechaExportacion: new Date().toISOString(),
+        materias: materiasParaRespaldo,
+        imagenes,
+      };
+
+      const fechaHoy = new Date().toISOString().split('T')[0];
+      const blob = new Blob([JSON.stringify(datosRespaldo, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `respaldo_apuntes_${fechaHoy}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setMensajeRespaldo('¡Copia de seguridad descargada con éxito!');
+      setTimeout(() => setMensajeRespaldo(null), 3000);
+    } catch (err) {
+      console.error('Error al exportar respaldo:', err);
+      alert('Hubo un error al generar la copia de seguridad.');
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  const handleCargarArchivoRespaldo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evento) => {
+      try {
+        const contenido = evento.target?.result as string;
+        const datos = JSON.parse(contenido);
+
+        if (!datos || !Array.isArray(datos.materias)) {
+          alert('El archivo no tiene un formato válido de respaldo de apuntes.');
+          return;
+        }
+
+        const materiasImportadas = datos.materias as Materia[];
+        const numTemas = materiasImportadas.reduce((acc, m) => acc + (m.temas?.length || 0), 0);
+
+        const confirmar = window.confirm(
+          `El respaldo contiene ${materiasImportadas.length} materias y ${numTemas} temas.\n\n` +
+          `¿Deseas restaurar este respaldo?\n` +
+          `• Aceptar: Restaurar y aplicar este respaldo.\n` +
+          `• Cancelar: No realizar cambios.`
+        );
+
+        if (!confirmar) return;
+
+        if (datos.imagenes && typeof datos.imagenes === 'object') {
+          await importarImagenes(datos.imagenes);
+        }
+
+        if (onRestaurarMaterias) {
+          onRestaurarMaterias(materiasImportadas);
+        }
+
+        setMensajeRespaldo('¡Respaldo restaurado con éxito!');
+        setTimeout(() => {
+          setMensajeRespaldo(null);
+          setMostrarModalRespaldo(false);
+        }, 1500);
+      } catch (err) {
+        console.error('Error al restaurar respaldo:', err);
+        alert('No se pudo procesar el archivo. Asegúrate de que sea un archivo JSON de respaldo válido.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   function handleAgregar() {
     const nombre = nuevaMateria.trim();
@@ -319,8 +419,17 @@ function Sidebar({
             </div>
           </div>
 
-          {/* Toggle de Modo Oscuro / Claro en vista expandida */}
+          {/* Toggle de Modo Oscuro / Claro y Copias de Seguridad en vista expandida */}
           <div className="sidebar-tema-seccion">
+            <button
+              type="button"
+              className="btn-tema-toggle btn-respaldo-sidebar"
+              onClick={() => setMostrarModalRespaldo(true)}
+              title="Copias de Seguridad (Exportar / Importar)"
+            >
+              <ShieldCheck size={15} />
+              <span>Copia de Seguridad</span>
+            </button>
             <button
               type="button"
               className="btn-tema-toggle"
@@ -385,6 +494,14 @@ function Sidebar({
             <button
               type="button"
               className="btn-mini-tema-toggle"
+              onClick={() => setMostrarModalRespaldo(true)}
+              title="Copias de Seguridad (Exportar / Importar)"
+            >
+              <ShieldCheck size={17} />
+            </button>
+            <button
+              type="button"
+              className="btn-mini-tema-toggle"
               onClick={onToggleModoOscuro}
               title={modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
             >
@@ -398,6 +515,104 @@ function Sidebar({
             >
               <PanelLeftOpen size={18} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Copia de Seguridad y Restauración */}
+      {mostrarModalRespaldo && (
+        <div
+          className="modal-overlay"
+          onClick={() => setMostrarModalRespaldo(false)}
+        >
+          <div
+            className="modal-contenedor modal-respaldo"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div className="modal-titulo-wrapper">
+                <ShieldCheck size={20} className="icono-respaldo-header" />
+                <h3>Copia de Seguridad y Restauración</h3>
+              </div>
+              <button
+                type="button"
+                className="btn-cerrar-modal"
+                onClick={() => setMostrarModalRespaldo(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body-respaldo">
+              <p className="descripcion-respaldo">
+                Guarda una copia completa de todos tus apuntes, materias e imágenes en un archivo local <strong>.JSON</strong>, o restaura una copia anterior en cualquier momento.
+              </p>
+
+              {mensajeRespaldo && (
+                <div className="alerta-respaldo-exito">
+                  <Check size={16} />
+                  <span>{mensajeRespaldo}</span>
+                </div>
+              )}
+
+              <div className="respaldo-opciones-grid">
+                {/* Exportar */}
+                <div className="tarjeta-respaldo">
+                  <div className="tarjeta-respaldo-icono icono-exportar">
+                    <Download size={24} />
+                  </div>
+                  <h4>Exportar Copia de Seguridad</h4>
+                  <p>
+                    Descarga un archivo con tus <strong>{materiasParaRespaldo.length} materias</strong> y <strong>{totalTemasRespaldo} temas</strong> (incluyendo imágenes adjuntas).
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-accion-respaldo btn-descargar-respaldo"
+                    onClick={handleDescargarRespaldo}
+                    disabled={exportando}
+                  >
+                    <Download size={16} />
+                    <span>{exportando ? 'Generando archivo...' : 'Descargar Respaldo JSON'}</span>
+                  </button>
+                </div>
+
+                {/* Importar / Restaurar */}
+                <div className="tarjeta-respaldo">
+                  <div className="tarjeta-respaldo-icono icono-importar">
+                    <Upload size={24} />
+                  </div>
+                  <h4>Restaurar Copia</h4>
+                  <p>
+                    Carga un archivo de respaldo previo (<code>.json</code>) para recuperar o migrar tus apuntes.
+                  </p>
+                  <input
+                    ref={inputArchivoRespaldoRef}
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={handleCargarArchivoRespaldo}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-accion-respaldo btn-cargar-respaldo"
+                    onClick={() => inputArchivoRespaldoRef.current?.click()}
+                  >
+                    <Upload size={16} />
+                    <span>Seleccionar Archivo JSON</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-secundario"
+                onClick={() => setMostrarModalRespaldo(false)}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

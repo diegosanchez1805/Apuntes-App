@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
@@ -24,8 +24,18 @@ import {
   Upload,
   Link as LinkIcon,
   X as CloseIcon,
+  Printer,
+  Download,
 } from 'lucide-react';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/atom-one-dark.css';
 import type { Tema } from '../types';
+import {
+  guardarImagen,
+  resolverReferenciasImagenes,
+  precargarImagenesDeTexto,
+  compactarImagenesEnTexto,
+} from '../utils/imageStore';
 
 interface EditorTemaProps {
   tema: Tema;
@@ -34,9 +44,39 @@ interface EditorTemaProps {
 
 type ModoVista = 'split' | 'edit' | 'preview';
 
-marked.setOptions({
+marked.use({
   gfm: true,
   breaks: true,
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      const language = lang && hljs.getLanguage(lang) ? lang.toLowerCase() : '';
+      let highlighted = '';
+      try {
+        highlighted = language
+          ? hljs.highlight(text, { language, ignoreIllegals: true }).value
+          : hljs.highlightAuto(text).value;
+      } catch {
+        highlighted = text;
+      }
+
+      const langEtiqueta = language || (lang ? lang.toLowerCase() : 'código');
+
+      return `<div class="bloque-codigo-contenedor">
+  <div class="bloque-codigo-header">
+    <div class="bloque-codigo-dots">
+      <span class="codigo-dot dot-rojo"></span>
+      <span class="codigo-dot dot-amarillo"></span>
+      <span class="codigo-dot dot-verde"></span>
+    </div>
+    <span class="codigo-lenguaje">${langEtiqueta}</span>
+    <button type="button" class="btn-copiar-codigo" data-code="${encodeURIComponent(text)}" title="Copiar código al portapapeles">
+      Copiar
+    </button>
+  </div>
+  <pre><code class="hljs ${language ? `language-${language}` : ''}">${highlighted}</code></pre>
+</div>\n`;
+    },
+  },
 });
 
 /**
@@ -95,8 +135,23 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
   const [urlImagen, setUrlImagen] = useState('');
   const [descImagen, setDescImagen] = useState('');
   const [cargandoImagen, setCargandoImagen] = useState(false);
+  const [imagenesVersion, setImagenesVersion] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Compactar automáticamente enlaces base64 super largos en notas existentes
+  // y precargar en memoria las imágenes de este tema
+  useEffect(() => {
+    compactarImagenesEnTexto(tema.contenido).then(({ nuevoTexto, modificado }) => {
+      if (modificado) {
+        onCambiarContenido(nuevoTexto);
+      }
+    });
+
+    precargarImagenesDeTexto(tema.contenido).then(() => {
+      setImagenesVersion((v) => v + 1);
+    });
+  }, [tema.id]);
 
   const fecha = new Date(tema.fechaEdicion);
   const fechaFormateada = fecha.toLocaleDateString('es-MX', {
@@ -120,9 +175,14 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     if (!tema.contenido.trim()) {
       return '<p class="preview-vacio">Comienza a escribir apuntes para ver la vista previa con formato...</p>';
     }
-    const parsed = marked.parse(tema.contenido) as string;
-    return DOMPurify.sanitize(parsed);
-  }, [tema.contenido]);
+    // Sustituye referencias img:ID por sus dataUrl reales para renderizado en la vista previa
+    const contenidoConImagenes = resolverReferenciasImagenes(tema.contenido);
+    const parsed = marked.parse(contenidoConImagenes) as string;
+    return DOMPurify.sanitize(parsed, {
+      ADD_TAGS: ['button', 'span'],
+      ADD_ATTR: ['data-code', 'class', 'target'],
+    });
+  }, [tema.contenido, imagenesVersion]);
 
   const aplicarFormato = (
     prefijo: string,
@@ -453,8 +513,10 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     try {
       setCargandoImagen(true);
       const dataUrl = await optimizarImagen(file);
+      const id = await guardarImagen(dataUrl);
       const nombreLimpio = file.name.replace(/\.[^/.]+$/, '') || 'Imagen';
-      insertarTextoEnCursor(`![${nombreLimpio}](${dataUrl})`);
+      insertarTextoEnCursor(`![${nombreLimpio}](img:${id})`);
+      setImagenesVersion((v) => v + 1);
       setMostrarModalImagen(false);
       setUrlImagen('');
       setDescImagen('');
@@ -723,6 +785,48 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     }
   };
 
+  const handleExportarPDF = () => {
+    window.print();
+  };
+
+  const handleDescargarMarkdown = () => {
+    const nombreArchivo = (tema.nombre.trim() || 'apunte')
+      .replace(/[/\\?%*:|"<>]/g, '-')
+      .replace(/\s+/g, '_');
+    const blob = new Blob([tema.contenido], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${nombreArchivo}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleMarkdownClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest('.btn-copiar-codigo') as HTMLButtonElement | null;
+    if (!btn) return;
+
+    const rawCode = btn.getAttribute('data-code');
+    if (rawCode) {
+      try {
+        const code = decodeURIComponent(rawCode);
+        await navigator.clipboard.writeText(code);
+        const originalText = btn.innerText;
+        btn.innerText = '✓ ¡Copiado!';
+        btn.classList.add('copiado');
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.remove('copiado');
+        }, 2000);
+      } catch {
+        // Ignorar
+      }
+    }
+  };
+
   return (
     <div className="editor-tema-contenedor">
       <header className="editor-header-bar">
@@ -769,6 +873,26 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
               <span className="texto-modo">Previa</span>
             </button>
           </div>
+
+          <button
+            type="button"
+            className="btn-accion-top"
+            onClick={handleExportarPDF}
+            title="Exportar a PDF o Imprimir apunte"
+          >
+            <Printer size={14} />
+            <span className="texto-accion">PDF</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-accion-top"
+            onClick={handleDescargarMarkdown}
+            title="Descargar apunte en archivo Markdown (.md)"
+          >
+            <Download size={14} />
+            <span className="texto-accion">.md</span>
+          </button>
 
           <button
             type="button"
@@ -919,17 +1043,23 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
           </div>
         )}
 
-        {(modo === 'split' || modo === 'preview') && (
-          <div className="panel-preview">
-            <div className="preview-encabezado-mini">
-              <span>Vista previa formateada</span>
-            </div>
-            <div
-              className="markdown-body"
-              dangerouslySetInnerHTML={{ __html: htmlRenderizado }}
-            />
+        <div
+          className={`panel-preview ${modo === 'edit' ? 'panel-preview-impresion-solo' : ''}`}
+        >
+          <div className="preview-encabezado-mini">
+            <span>Vista previa formateada</span>
           </div>
-        )}
+          {/* Cabecera para cuando se exporta a PDF o imprime */}
+          <div className="print-cabecera-documento">
+            <h1 className="print-titulo-tema">{tema.nombre}</h1>
+            <p className="print-fecha-tema">Fecha de apunte: {fechaFormateada}</p>
+          </div>
+          <div
+            className="markdown-body"
+            onClick={handleMarkdownClick}
+            dangerouslySetInnerHTML={{ __html: htmlRenderizado }}
+          />
+        </div>
       </div>
 
       <footer className="editor-statusbar">

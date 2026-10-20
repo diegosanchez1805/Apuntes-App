@@ -2133,3 +2133,404 @@ body.dark-mode .icono-formato {
     width: 220px;
   }
 }
+
+/* ==========================================================================
+   BLOQUES DE CÓDIGO CON RESALTADO DE SINTAXIS Y COPIADO
+   ========================================================================== */
+.bloque-codigo-contenedor {
+  margin: 1.25rem 0;
+  border-radius: var(--radius-md);
+  background-color: #282c34;
+  border: 1px solid #3e4451;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bloque-codigo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background-color: #21252b;
+  border-bottom: 1px solid #333842;
+  user-select: none;
+}
+
+.bloque-codigo-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codigo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red {
+  background-color: #ff5f56;
+}
+
+.dot-yellow {
+  background-color: #ffbd2e;
+}
+
+.dot-green {
+  background-color: #27c93f;
+}
+
+.bloque-codigo-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.codigo-lenguaje {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #abb2bf;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.btn-copiar-codigo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: #abb2bf;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copiar-codigo:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-copiar-codigo.copiado {
+  background: #166534;
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.bloque-codigo-contenedor pre {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  background-color: #282c34 !important;
+  overflow-x: auto;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.bloque-codigo-contenedor pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  border-radius: 0;
+  color: #abb2bf;
+}
+
+/* Cabecera de documento oculta en pantalla, solo visible al imprimir/exportar PDF */
+.print-cabecera-documento {
+  display: none;
+}
+
+/* ==========================================================================
+   MODAL DE COPIA DE SEGURIDAD (RESPALDO / RESTAURAR)
+   ========================================================================== */
+.btn-respaldo-sidebar {
+  margin-bottom: 6px;
+}
+
+.modal-respaldo {
+  max-width: 580px;
+}
+
+.icono-respaldo-header {
+  color: var(--accent);
+}
+
+.modal-body-respaldo {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.descripcion-respaldo {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.alerta-respaldo-exito {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-size: 12.5px;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.dark-mode .alerta-respaldo-exito {
+  background-color: rgba(22, 101, 52, 0.25);
+  border-color: #15803d;
+  color: #86efac;
+}
+
+.respaldo-opciones-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+@media (max-width: 580px) {
+  .respaldo-opciones-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tarjeta-respaldo {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  align-items: center;
+}
+
+.tarjeta-respaldo-icono {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.icono-exportar {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.dark-mode .icono-exportar {
+  background-color: rgba(67, 56, 202, 0.3);
+  color: #a5b4fc;
+}
+
+.icono-importar {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.dark-mode .icono-importar {
+  background-color: rgba(21, 128, 61, 0.3);
+  color: #86efac;
+}
+
+.tarjeta-respaldo h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tarjeta-respaldo p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+  flex: 1;
+}
+
+.btn-accion-respaldo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 6px;
+}
+
+.btn-descargar-respaldo {
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-descargar-respaldo:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-descargar-respaldo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-cargar-respaldo {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.btn-cargar-respaldo:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+/* ==========================================================================
+   ESTILOS DE IMPRESIÓN Y EXPORTACIÓN A PDF (@media print)
+   ========================================================================== */
+@media print {
+  /* Ocultar elementos no relevantes en documento PDF */
+  .sidebar,
+  .columna-temas,
+  .editor-header-bar,
+  .editor-toolbar,
+  .panel-editor-input,
+  .editor-statusbar,
+  .preview-encabezado-mini,
+  .btn-copiar-codigo,
+  .modal-overlay,
+  .materia-banner,
+  .editor-acciones-top,
+  .bienvenida-dashboard {
+    display: none !important;
+  }
+
+  /* Resetear contenedores para impresión de documento continuo */
+  html, body, #root, .app, .contenido, .panel-materia-contenedor, .editor-tema-area, .editor-cuerpo {
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    position: static !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .panel-preview {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 1.5cm 1.5cm !important;
+    background: #ffffff !important;
+    border: none !important;
+  }
+
+  /* Mostrar cabecera oficial en el PDF */
+  .print-cabecera-documento {
+    display: block !important;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .print-titulo-tema {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+  }
+
+  .print-fecha-tema {
+    font-size: 10pt;
+    color: #64748b;
+    margin: 0;
+  }
+
+  .markdown-body {
+    max-width: 100% !important;
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+    color: #1e293b !important;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    page-break-after: avoid;
+    break-after: avoid;
+    color: #0f172a !important;
+  }
+
+  .markdown-body pre,
+  .bloque-codigo-contenedor,
+  .markdown-body table,
+  .markdown-body img,
+  .markdown-body blockquote {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .bloque-codigo-contenedor {
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  .bloque-codigo-header {
+    background-color: #f1f5f9 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+
+  .codigo-lenguaje {
+    color: #334155 !important;
+    background-color: #e2e8f0 !important;
+  }
+
+  .bloque-codigo-contenedor pre {
+    background-color: #f8fafc !important;
+  }
+
+  .bloque-codigo-contenedor pre code {
+    color: #1e293b !important;
+  }
+
+  .markdown-body table th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+  }
+
+  .markdown-body table td,
+  .markdown-body table th {
+    border-color: #cbd5e1 !important;
+  }
+}

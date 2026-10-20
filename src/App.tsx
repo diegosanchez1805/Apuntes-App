@@ -45,6 +45,21 @@ Los árboles binarios son estructuras de datos jerárquicas fundamentales. Cada 
 
 > **Regla de oro:** En un BST, el recorrido *In-Order* siempre devuelve los elementos en orden ascendente estricto.
 
+### Implementación en Código (Python)
+\`\`\`python
+class Nodo:
+    def __init__(self, valor):
+        self.valor = valor
+        self.izq = None
+        self.der = None
+
+def in_order(nodo):
+    if nodo:
+        in_order(nodo.izq)
+        print(f"Nodo: {nodo.valor}")
+        in_order(nodo.der)
+\`\`\`
+
 ### Tareas de Estudio (Checklist)
 - [x] Repasar inserción recursiva
 - [x] Analizar rotaciones simples a la izquierda y derecha
@@ -208,6 +223,8 @@ const materiasFiltradas = materias.filter((m) =>
     <div className="app">
       <Sidebar
         materias={materiasFiltradas}
+        todasLasMaterias={materias}
+        onRestaurarMaterias={setMaterias}
         materiaSeleccionadaId={materiaSeleccionadaId}
         busqueda={busqueda}
         onBuscar={setBusqueda}
