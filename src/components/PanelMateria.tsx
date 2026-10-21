@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   GraduationCap,
+  Home,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import EditorTema from './EditorTema';
@@ -30,6 +31,7 @@ interface PanelMateriaProps {
   modoOscuro?: boolean;
   onToggleModoOscuro?: () => void;
   onAbrirFlashcards?: () => void;
+  onIrAlMenuPrincipal?: () => void;
 }
 
 function PanelMateria({
@@ -44,6 +46,7 @@ function PanelMateria({
   modoOscuro,
   onToggleModoOscuro,
   onAbrirFlashcards,
+  onIrAlMenuPrincipal,
 }: PanelMateriaProps) {
   const [nuevoTema, setNuevoTema] = useState('');
   const [localTemaSeleccionadoId, setLocalTemaSeleccionadoId] = useState<string | null>(null);
@@ -98,6 +101,17 @@ function PanelMateria({
           </p>
         </div>
         <div className="banner-acciones">
+          {onIrAlMenuPrincipal && (
+            <button
+              type="button"
+              className="btn-volver-menu-principal"
+              onClick={onIrAlMenuPrincipal}
+              title="Volver al Menú Principal (Inicio)"
+            >
+              <Home size={15} />
+              <span>Menú Principal</span>
+            </button>
+          )}
           {onAbrirFlashcards && (
             <button
               type="button"
@@ -293,6 +307,7 @@ function PanelMateria({
               tema={temaSeleccionado}
               modoOscuro={modoOscuro}
               onAbrirFlashcards={onAbrirFlashcards}
+              onIrAlMenuPrincipal={onIrAlMenuPrincipal}
               onCambiarContenido={(nuevoContenido) =>
                 onActualizarContenido(materia.id, temaSeleccionado.id, nuevoContenido)
               }
@@ -306,6 +321,17 @@ function PanelMateria({
               <p>
                 Haz clic en cualquier tema de la lista izquierda para editar o consultar tus apuntes.
               </p>
+              {onIrAlMenuPrincipal && (
+                <button
+                  type="button"
+                  className="btn-volver-menu-principal btn-placeholder-menu"
+                  onClick={onIrAlMenuPrincipal}
+                  title="Volver al Menú Principal (Inicio)"
+                >
+                  <Home size={15} />
+                  <span>Ir al Menú Principal</span>
+                </button>
+              )}
               <div className="placeholder-tips">
                 <div className="tip-item">
                   <Sparkles size={16} />

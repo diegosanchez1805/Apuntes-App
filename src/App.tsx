@@ -177,6 +177,11 @@ function App() {
     setTemaSeleccionadoId(temaId);
   };
 
+  const handleIrAlMenuPrincipal = () => {
+    setMateriaSeleccionadaId(null);
+    setTemaSeleccionadoId(null);
+  };
+
   const valorInicialOscuro =
     typeof window !== 'undefined' && window.matchMedia
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -332,6 +337,7 @@ const materiasFiltradas = materias.filter((m) =>
         onCambiarColorMateria={cambiarColorMateria}
         onReordenarMaterias={reordenarMaterias}
         onAbrirBusquedaGlobal={() => setModalBusquedaAbierto(true)}
+        onIrAlInicio={handleIrAlMenuPrincipal}
         modoOscuro={modoOscuro}
         onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
       />
@@ -349,6 +355,7 @@ const materiasFiltradas = materias.filter((m) =>
             modoOscuro={modoOscuro}
             onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
             onAbrirFlashcards={() => setModalFlashcardsAbierto(true)}
+            onIrAlMenuPrincipal={handleIrAlMenuPrincipal}
           />
         ) : (
           <div className="bienvenida-dashboard">

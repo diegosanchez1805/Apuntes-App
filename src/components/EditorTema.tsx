@@ -29,6 +29,7 @@ import {
   Sigma,
   Workflow,
   GraduationCap,
+  Home,
 } from 'lucide-react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
@@ -48,6 +49,7 @@ interface EditorTemaProps {
   onCambiarContenido: (nuevoContenido: string) => void;
   modoOscuro?: boolean;
   onAbrirFlashcards?: () => void;
+  onIrAlMenuPrincipal?: () => void;
 }
 
 type ModoVista = 'split' | 'edit' | 'preview';
@@ -215,6 +217,7 @@ function EditorTema({
   onCambiarContenido,
   modoOscuro,
   onAbrirFlashcards,
+  onIrAlMenuPrincipal,
 }: EditorTemaProps) {
   const [modo, setModo] = useState<ModoVista>('split');
   const [copiado, setCopiado] = useState(false);
@@ -1023,6 +1026,18 @@ function EditorTema({
         </div>
 
         <div className="editor-acciones-top">
+          {onIrAlMenuPrincipal && (
+            <button
+              type="button"
+              className="btn-accion-top btn-menu-principal-top"
+              onClick={onIrAlMenuPrincipal}
+              title="Volver al Menú Principal (Inicio)"
+            >
+              <Home size={14} className="icono-home-apunte" />
+              <span className="texto-accion">Menú</span>
+            </button>
+          )}
+
           <div className="grupo-modos" role="group" aria-label="Modo de vista">
             <button
               type="button"

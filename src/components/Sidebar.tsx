@@ -15,6 +15,7 @@ import {
   Download,
   Upload,
   Check,
+  Home,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -34,6 +35,7 @@ interface SidebarProps {
   onReordenarMaterias: (idArrastrado: string, idDestino: string) => void;
   onRestaurarMaterias?: (nuevasMaterias: Materia[]) => void;
   onAbrirBusquedaGlobal?: () => void;
+  onIrAlInicio?: () => void;
   modoOscuro: boolean;
   onToggleModoOscuro: () => void;
 }
@@ -73,6 +75,7 @@ function Sidebar({
   todasLasMaterias,
   onRestaurarMaterias,
   onAbrirBusquedaGlobal,
+  onIrAlInicio,
   modoOscuro,
   onToggleModoOscuro,
 }: SidebarProps) {
@@ -212,7 +215,19 @@ function Sidebar({
       <div className="sidebar-header">
         {!colapsada ? (
           <>
-            <div className="sidebar-logo">
+            <div
+              className={`sidebar-logo ${onIrAlInicio ? 'sidebar-logo-clickable' : ''}`}
+              onClick={onIrAlInicio}
+              onKeyDown={(e) => {
+                if (onIrAlInicio && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onIrAlInicio();
+                }
+              }}
+              tabIndex={onIrAlInicio ? 0 : undefined}
+              role={onIrAlInicio ? 'button' : undefined}
+              title={onIrAlInicio ? 'Ir al Menú Principal (Inicio)' : undefined}
+            >
               <div className="logo-icono">
                 <BookOpen size={20} />
               </div>
@@ -460,6 +475,17 @@ function Sidebar({
       ) : (
         /* ================= VISTA COMPACTA / PEQUEÑA ================= */
         <div className="sidebar-cuerpo-colapsado">
+          {onIrAlInicio && (
+            <button
+              type="button"
+              className={`btn-mini-menu-principal ${materiaSeleccionadaId === null ? 'activo' : ''}`}
+              onClick={onIrAlInicio}
+              title="Menú Principal (Inicio)"
+            >
+              <Home size={17} />
+            </button>
+          )}
+
           {onAbrirBusquedaGlobal && (
             <button
               type="button"
