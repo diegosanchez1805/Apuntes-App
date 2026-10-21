@@ -13,6 +13,7 @@ import {
   PanelLeftOpen,
   Sun,
   Moon,
+  GraduationCap,
 } from 'lucide-react';
 import type { Materia } from '../types';
 import EditorTema from './EditorTema';
@@ -28,6 +29,7 @@ interface PanelMateriaProps {
   onReordenarTemas: (materiaId: string, idArrastrado: string, idDestino: string) => void;
   modoOscuro?: boolean;
   onToggleModoOscuro?: () => void;
+  onAbrirFlashcards?: () => void;
 }
 
 function PanelMateria({
@@ -41,6 +43,7 @@ function PanelMateria({
   onReordenarTemas,
   modoOscuro,
   onToggleModoOscuro,
+  onAbrirFlashcards,
 }: PanelMateriaProps) {
   const [nuevoTema, setNuevoTema] = useState('');
   const [localTemaSeleccionadoId, setLocalTemaSeleccionadoId] = useState<string | null>(null);
@@ -95,6 +98,17 @@ function PanelMateria({
           </p>
         </div>
         <div className="banner-acciones">
+          {onAbrirFlashcards && (
+            <button
+              type="button"
+              className="btn-repaso-header"
+              onClick={onAbrirFlashcards}
+              title="Modo Repaso con Tarjetas de Estudio (Flashcards)"
+            >
+              <GraduationCap size={15} />
+              <span>Modo Repaso</span>
+            </button>
+          )}
           {onToggleModoOscuro && (
             <button
               type="button"
@@ -277,6 +291,8 @@ function PanelMateria({
             <EditorTema
               key={temaSeleccionado.id}
               tema={temaSeleccionado}
+              modoOscuro={modoOscuro}
+              onAbrirFlashcards={onAbrirFlashcards}
               onCambiarContenido={(nuevoContenido) =>
                 onActualizarContenido(materia.id, temaSeleccionado.id, nuevoContenido)
               }

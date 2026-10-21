@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Table, List, Sparkles, ArrowRight, Search, Sigma } from 'lucide-react';
-import type { Materia } from './types';
+import { BookOpen, Sparkles, ArrowRight, Search, Sigma, GraduationCap, Workflow } from 'lucide-react';
+import type { Materia, TarjetaFlashcard } from './types';
 import Sidebar from './components/Sidebar';
 import PanelMateria from './components/PanelMateria';
 import ModalBusquedaGlobal from './components/ModalBusquedaGlobal';
+import ModalFlashcards from './components/ModalFlashcards';
 import useLocalStorage from './hooks/useLocalStorage';
 
 
@@ -74,6 +75,25 @@ $$
 N(h) = \\sum_{i=0}^{h} 2^i = 2^{h+1} - 1
 $$
 
+### Diagrama de Flujo del Proceso de Inserción (Mermaid)
+\`\`\`mermaid
+graph TD
+  A[Nuevo Valor] --> B{¿Es menor que la Raíz?}
+  B -->|Sí| C[Ir al Subárbol Izquierdo]
+  B -->|No| D[Ir al Subárbol Derecho]
+  C --> E{¿Posición Vacía?}
+  D --> F{¿Posición Vacía?}
+  E -->|Sí| G[Insertar como Hijo Izquierdo]
+  E -->|No| C
+  F -->|Sí| H[Insertar como Hijo Derecho]
+  F -->|No| D
+\`\`\`
+
+### Preguntas Clave para Examen (Tarjetas de Repaso)
+- ¿Cuál es la complejidad promedio de búsqueda en un BST? ::: O(log n)
+- ¿Qué garantiza que un recorrido In-Order sea ascendente? ::: Que todos los valores del subárbol izquierdo son menores y los del derecho son mayores.
+- ¿Cuál es la condición para que un árbol binario sea AVL? ::: El factor de equilibrio de cada nodo debe estar entre -1, 0 o +1.
+
 ### Tareas de Estudio (Checklist)
 - [x] Repasar inserción recursiva
 - [x] Analizar rotaciones simples a la izquierda y derecha
@@ -98,6 +118,47 @@ function App() {
   const [materiaSeleccionadaId, setMateriaSeleccionadaId] = useState<string | null>(null);
   const [temaSeleccionadoId, setTemaSeleccionadoId] = useState<string | null>(null);
   const [modalBusquedaAbierto, setModalBusquedaAbierto] = useState(false);
+  const [modalFlashcardsAbierto, setModalFlashcardsAbierto] = useState(false);
+
+  function guardarTarjetaManual(materiaId: string, temaId: string, tarjeta: TarjetaFlashcard) {
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id === materiaId
+          ? {
+              ...m,
+              temas: m.temas.map((t) =>
+                t.id === temaId
+                  ? {
+                      ...t,
+                      flashcards: [...(t.flashcards || []), tarjeta],
+                    }
+                  : t
+              ),
+            }
+          : m
+      )
+    );
+  }
+
+  function eliminarTarjetaManual(materiaId: string, temaId: string, tarjetaId: string) {
+    setMaterias((prev) =>
+      prev.map((m) =>
+        m.id === materiaId
+          ? {
+              ...m,
+              temas: m.temas.map((t) =>
+                t.id === temaId
+                  ? {
+                      ...t,
+                      flashcards: (t.flashcards || []).filter((f) => f.id !== tarjetaId),
+                    }
+                  : t
+              ),
+            }
+          : m
+      )
+    );
+  }
 
   // Atajo global Ctrl+K para abrir la paleta de búsqueda
   useEffect(() => {
@@ -287,6 +348,7 @@ const materiasFiltradas = materias.filter((m) =>
             onReordenarTemas={reordenarTemas}
             modoOscuro={modoOscuro}
             onToggleModoOscuro={() => setModoOscuro((prev) => !prev)}
+            onAbrirFlashcards={() => setModalFlashcardsAbierto(true)}
           />
         ) : (
           <div className="bienvenida-dashboard">
@@ -297,7 +359,7 @@ const materiasFiltradas = materias.filter((m) =>
               </div>
               <h2>¡Te damos la bienvenida a tus Apuntes!</h2>
               <p className="bienvenida-desc">
-                Crea y organiza tus materias, toma notas con formato enriquecido, fórmulas LaTeX, tablas, listas y mantén tus apuntes sincronizados automáticamente.
+                Crea y organiza tus materias, toma notas con formato enriquecido, diagramas Mermaid, fórmulas LaTeX, tarjetas de estudio y mantén tus apuntes sincronizados automáticamente.
               </p>
 
               {/* Botón directo de búsqueda global */}
@@ -317,26 +379,26 @@ const materiasFiltradas = materias.filter((m) =>
               <div className="caracteristicas-grid">
                 <div className="caracteristica-card">
                   <div className="caracteristica-icono icono-tabla">
-                    <Table size={20} />
+                    <GraduationCap size={20} />
                   </div>
-                  <h4>Tablas Estructuradas</h4>
-                  <p>Inserta tablas comparativas y de datos con alineación y formato profesional.</p>
+                  <h4>Tarjetas Flashcards</h4>
+                  <p>Modo repaso interactivo con autoevaluación 3D para memorizar antes de exámenes.</p>
                 </div>
 
                 <div className="caracteristica-card">
                   <div className="caracteristica-icono icono-formato">
-                    <Sigma size={20} />
+                    <Workflow size={20} />
                   </div>
-                  <h4>Fórmulas Matemáticas (LaTeX)</h4>
-                  <p>Renderiza ecuaciones algebraicas, integrales, matrices y límites con tipografía KaTeX.</p>
+                  <h4>Diagramas Mermaid</h4>
+                  <p>Genera mapas conceptuales, grafos y diagramas de flujo directamente con texto.</p>
                 </div>
 
                 <div className="caracteristica-card">
                   <div className="caracteristica-icono icono-lista">
-                    <List size={20} />
+                    <Sigma size={20} />
                   </div>
-                  <h4>Viñetas y Numeración</h4>
-                  <p>Organiza tus ideas con listas con puntos, listas numeradas y checklists de tareas.</p>
+                  <h4>Fórmulas LaTeX</h4>
+                  <p>Renderiza ecuaciones algebraicas, integrales, límites y matrices con KaTeX.</p>
                 </div>
               </div>
 
@@ -382,6 +444,16 @@ const materiasFiltradas = materias.filter((m) =>
         onClose={() => setModalBusquedaAbierto(false)}
         materias={materias}
         onSeleccionarResultado={handleSeleccionarResultadoBusqueda}
+      />
+
+      {/* Modal de Repaso con Tarjetas de Estudio (Flashcards) */}
+      <ModalFlashcards
+        isOpen={modalFlashcardsAbierto}
+        onClose={() => setModalFlashcardsAbierto(false)}
+        materia={materiaSeleccionada}
+        tema={materiaSeleccionada?.temas.find((t) => t.id === temaSeleccionadoId) ?? null}
+        onGuardarTarjetaManual={guardarTarjetaManual}
+        onEliminarTarjetaManual={eliminarTarjetaManual}
       />
     </div>
   );

@@ -27,11 +27,14 @@ import {
   Printer,
   Download,
   Sigma,
+  Workflow,
+  GraduationCap,
 } from 'lucide-react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import mermaid from 'mermaid';
 import type { Tema } from '../types';
 import {
   guardarImagen,
@@ -43,6 +46,8 @@ import {
 interface EditorTemaProps {
   tema: Tema;
   onCambiarContenido: (nuevoContenido: string) => void;
+  modoOscuro?: boolean;
+  onAbrirFlashcards?: () => void;
 }
 
 type ModoVista = 'split' | 'edit' | 'preview';
@@ -110,6 +115,22 @@ marked.use({
   ],
   renderer: {
     code({ text, lang }: { text: string; lang?: string }) {
+      if (lang && lang.toLowerCase() === 'mermaid') {
+        return `<div class="bloque-mermaid-contenedor">
+  <div class="bloque-mermaid-header">
+    <div class="bloque-mermaid-dots">
+      <span class="codigo-dot dot-rojo"></span>
+      <span class="codigo-dot dot-amarillo"></span>
+      <span class="codigo-dot dot-verde"></span>
+    </div>
+    <span class="mermaid-lenguaje">DIAGRAMA MERMAID</span>
+  </div>
+  <div class="mermaid-diagrama-body">
+    <div class="mermaid" data-mermaid="${encodeURIComponent(text)}">${text}</div>
+  </div>
+</div>\n`;
+      }
+
       const language = lang && hljs.getLanguage(lang) ? lang.toLowerCase() : '';
       let highlighted = '';
       try {
@@ -189,7 +210,12 @@ function optimizarImagen(
   });
 }
 
-function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
+function EditorTema({
+  tema,
+  onCambiarContenido,
+  modoOscuro,
+  onAbrirFlashcards,
+}: EditorTemaProps) {
   const [modo, setModo] = useState<ModoVista>('split');
   const [copiado, setCopiado] = useState(false);
   const [mostrarModalImagen, setMostrarModalImagen] = useState(false);
@@ -267,6 +293,50 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
       ADD_ATTR: ['data-code', 'class', 'target', 'style', 'aria-hidden'],
     });
   }, [tema.contenido, imagenesVersion]);
+
+  // Renderizar diagramas de Mermaid al actualizar el HTML o cambiar modo oscuro
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: modoOscuro ? 'dark' : 'default',
+          securityLevel: 'loose',
+          fontFamily: 'inherit',
+          themeVariables: modoOscuro
+            ? {
+                darkMode: true,
+                background: '#151d2e',
+                primaryColor: '#4f46e5',
+                primaryTextColor: '#f8fafc',
+                lineColor: '#94a3b8',
+              }
+            : undefined,
+        });
+
+        const elementos = document.querySelectorAll<HTMLElement>('.markdown-body .mermaid');
+        if (elementos.length === 0) return;
+
+        // Restaurar código original para poder re-renderizar limpiamente
+        elementos.forEach((el) => {
+          const raw = el.getAttribute('data-mermaid');
+          if (raw) {
+            el.removeAttribute('data-processed');
+            el.textContent = decodeURIComponent(raw);
+          }
+        });
+
+        await mermaid.run({
+          nodes: Array.from(elementos),
+          suppressErrors: true,
+        });
+      } catch (err) {
+        console.warn('Mermaid render notice:', err);
+      }
+    }, 70);
+
+    return () => clearTimeout(timeout);
+  }, [htmlRenderizado, modoOscuro]);
 
   const aplicarFormato = (
     prefijo: string,
@@ -581,6 +651,11 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
     } else {
       aplicarFormato('$', '$', 'x^2 + y^2 = r^2');
     }
+  };
+
+  const insertarDiagramaMermaid = () => {
+    const diagrama = `\n\`\`\`mermaid\ngraph TD\n  A[Inicio del Proceso] --> B{¿Es condición válida?}\n  B -->|Sí| C[Ejecutar Acción Principal]\n  B -->|No| D[Ruta Alternativa o Error]\n  C --> E[Fin del Flujo]\n  D --> E\n\`\`\`\n`;
+    insertarTextoEnCursor(diagrama);
   };
 
   const insertarTextoEnCursor = (textoAInsertar: string) => {
@@ -978,6 +1053,18 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
             </button>
           </div>
 
+          {onAbrirFlashcards && (
+            <button
+              type="button"
+              className="btn-accion-top btn-repaso-top"
+              onClick={onAbrirFlashcards}
+              title="Modo Repaso con Tarjetas de Estudio (Flashcards)"
+            >
+              <GraduationCap size={15} className="icono-repaso-top" />
+              <span className="texto-accion">Repasar</span>
+            </button>
+          )}
+
           <button
             type="button"
             className="btn-accion-top"
@@ -1124,6 +1211,15 @@ function EditorTema({ tema, onCambiarContenido }: EditorTemaProps) {
               title="Fórmula matemática LaTeX ($x$ o $$f(x)$$) (Ctrl+M)"
             >
               <Sigma size={15} />
+            </button>
+            <button
+              type="button"
+              className="btn-tool"
+              onClick={insertarDiagramaMermaid}
+              title="Insertar Diagrama de Flujo (Mermaid)"
+            >
+              <Workflow size={15} />
+              <span className="tool-label">Diagrama</span>
             </button>
             <button
               type="button"
