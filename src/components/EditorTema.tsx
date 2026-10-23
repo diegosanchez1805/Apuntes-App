@@ -227,7 +227,11 @@ function EditorTema({
   const [cargandoImagen, setCargandoImagen] = useState(false);
   const [imagenesVersion, setImagenesVersion] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeSourceRef = useRef<'editor' | 'preview' | null>(null);
+  const resetSourceTimeoutRef = useRef<number | null>(null);
+  const syncAnimFrameRef = useRef<number | null>(null);
 
   // Compactar automáticamente enlaces base64 super largos en notas existentes
   // y precargar en memoria las imágenes de este tema
@@ -333,13 +337,187 @@ function EditorTema({
           nodes: Array.from(elementos),
           suppressErrors: true,
         });
+
+        if (modo === 'split' && activeSourceRef.current !== 'preview') {
+          sincronizarVistaPreviaConCursor();
+        }
       } catch (err) {
         console.warn('Mermaid render notice:', err);
       }
     }, 70);
 
     return () => clearTimeout(timeout);
-  }, [htmlRenderizado, modoOscuro]);
+  }, [htmlRenderizado, modoOscuro, modo]);
+
+  const marcarFuenteScroll = (fuente: 'editor' | 'preview') => {
+    activeSourceRef.current = fuente;
+    if (resetSourceTimeoutRef.current) {
+      window.clearTimeout(resetSourceTimeoutRef.current);
+    }
+    resetSourceTimeoutRef.current = window.setTimeout(() => {
+      activeSourceRef.current = null;
+    }, 200);
+  };
+
+  const handleEditorScroll = () => {
+    if (modo !== 'split') return;
+    if (activeSourceRef.current === 'preview') return;
+    activeSourceRef.current = 'editor';
+
+    const textarea = textareaRef.current;
+    const preview = previewRef.current;
+    if (!textarea || !preview) return;
+
+    const maxEditor = textarea.scrollHeight - textarea.clientHeight;
+    const maxPreview = preview.scrollHeight - preview.clientHeight;
+    if (maxEditor > 0 && maxPreview > 0) {
+      const ratio = textarea.scrollTop / maxEditor;
+      preview.scrollTop = ratio * maxPreview;
+    }
+
+    if (resetSourceTimeoutRef.current) {
+      window.clearTimeout(resetSourceTimeoutRef.current);
+    }
+    resetSourceTimeoutRef.current = window.setTimeout(() => {
+      activeSourceRef.current = null;
+    }, 150);
+  };
+
+  const handlePreviewScroll = () => {
+    if (modo !== 'split') return;
+    if (activeSourceRef.current === 'editor') return;
+    activeSourceRef.current = 'preview';
+
+    const textarea = textareaRef.current;
+    const preview = previewRef.current;
+    if (!textarea || !preview) return;
+
+    const maxEditor = textarea.scrollHeight - textarea.clientHeight;
+    const maxPreview = preview.scrollHeight - preview.clientHeight;
+    if (maxEditor > 0 && maxPreview > 0) {
+      const ratio = preview.scrollTop / maxPreview;
+      textarea.scrollTop = ratio * maxEditor;
+    }
+
+    if (resetSourceTimeoutRef.current) {
+      window.clearTimeout(resetSourceTimeoutRef.current);
+    }
+    resetSourceTimeoutRef.current = window.setTimeout(() => {
+      activeSourceRef.current = null;
+    }, 150);
+  };
+
+  const sincronizarVistaPreviaConCursor = (forzarAlFinal?: boolean) => {
+    if (modo !== 'split') return;
+    const textarea = textareaRef.current;
+    const preview = previewRef.current;
+    if (!textarea || !preview) return;
+
+    const text = textarea.value;
+    if (!text.trim()) {
+      preview.scrollTop = 0;
+      return;
+    }
+
+    const maxPreviewScroll = preview.scrollHeight - preview.clientHeight;
+    if (maxPreviewScroll <= 0) return;
+
+    const cursorPos = textarea.selectionStart ?? text.length;
+    const isNearEnd = forzarAlFinal || cursorPos >= text.length - 2;
+
+    // Si el usuario escribe al final del documento, seguirlo hasta el fondo de la previa
+    if (isNearEnd) {
+      preview.scrollTop = maxPreviewScroll;
+      return;
+    }
+
+    // Si está al principio del documento
+    if (cursorPos <= 1) {
+      preview.scrollTop = 0;
+      return;
+    }
+
+    const lineas = text.split('\n');
+    const textoAntes = text.slice(0, cursorPos);
+    const lineaActualIdx = textoAntes.split('\n').length - 1;
+    const totalLineas = lineas.length;
+
+    let elementoEncontrado: HTMLElement | null = null;
+    const markdownBody = preview.querySelector('.markdown-body');
+
+    if (markdownBody) {
+      const candidates = Array.from(
+        markdownBody.querySelectorAll<HTMLElement>(
+          'h1, h2, h3, h4, h5, h6, p, li, tr, blockquote, pre, .katex-display-block, .bloque-mermaid-contenedor'
+        )
+      );
+
+      // Buscar texto de la línea actual o anteriores para ubicar el elemento correspondiente en la previa
+      for (let i = lineaActualIdx; i >= Math.max(0, lineaActualIdx - 5); i--) {
+        const lineaTexto = lineas[i]?.replace(/^[#*>\-\d.\s\[\]x]+/, '').trim();
+        if (lineaTexto && lineaTexto.length >= 3) {
+          const fragmento = lineaTexto.slice(0, 32).toLowerCase();
+          const coincidencias = candidates.filter((el) =>
+            el.textContent?.toLowerCase().includes(fragmento)
+          );
+
+          if (coincidencias.length === 1) {
+            elementoEncontrado = coincidencias[0];
+            break;
+          } else if (coincidencias.length > 1) {
+            const targetRatio = totalLineas > 1 ? lineaActualIdx / totalLineas : 0;
+            let mejor = coincidencias[0];
+            let menorDiff = Infinity;
+            for (const cand of coincidencias) {
+              const candRatio = cand.offsetTop / (preview.scrollHeight || 1);
+              const diff = Math.abs(candRatio - targetRatio);
+              if (diff < menorDiff) {
+                menorDiff = diff;
+                mejor = cand;
+              }
+            }
+            elementoEncontrado = mejor;
+            break;
+          }
+        }
+      }
+    }
+
+    if (elementoEncontrado) {
+      const previewRect = preview.getBoundingClientRect();
+      const elemRect = elementoEncontrado.getBoundingClientRect();
+      const targetOffsetTop = elemRect.top - previewRect.top + preview.scrollTop;
+      // Posicionar el elemento a ~30% de la altura visible del panel para lectura cómoda
+      const desiredScroll = targetOffsetTop - preview.clientHeight * 0.3;
+      preview.scrollTop = Math.max(0, Math.min(desiredScroll, maxPreviewScroll));
+    } else {
+      // Fallback: desplazar proporcionalmente según la línea actual del cursor
+      const lineRatio = totalLineas > 1 ? lineaActualIdx / (totalLineas - 1) : 0;
+      preview.scrollTop = lineRatio * maxPreviewScroll;
+    }
+  };
+
+  const programarSincronizacionCursor = (forzarAlFinal?: boolean) => {
+    if (modo !== 'split') return;
+    if (syncAnimFrameRef.current) {
+      cancelAnimationFrame(syncAnimFrameRef.current);
+    }
+    syncAnimFrameRef.current = requestAnimationFrame(() => {
+      sincronizarVistaPreviaConCursor(forzarAlFinal);
+    });
+  };
+
+  // Sincronizar automáticamente la previa cuando cambia el contenido o el modo
+  useEffect(() => {
+    if (modo !== 'split') return;
+    if (activeSourceRef.current === 'preview') return;
+
+    const timer = window.setTimeout(() => {
+      sincronizarVistaPreviaConCursor();
+    }, 40);
+
+    return () => window.clearTimeout(timer);
+  }, [htmlRenderizado, modo]);
 
   const aplicarFormato = (
     prefijo: string,
@@ -1250,13 +1428,56 @@ function EditorTema({
 
       <div className={`editor-cuerpo modo-${modo}`}>
         {(modo === 'split' || modo === 'edit') && (
-          <div className="panel-editor-input">
+          <div
+            className="panel-editor-input"
+            onMouseEnter={() => {
+              activeSourceRef.current = 'editor';
+            }}
+          >
             <textarea
               ref={textareaRef}
               className="textarea-apuntes"
               value={tema.contenido}
-              onChange={(e) => onCambiarContenido(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onChange={(e) => {
+                activeSourceRef.current = 'editor';
+                onCambiarContenido(e.target.value);
+                programarSincronizacionCursor();
+              }}
+              onKeyDown={(e) => {
+                activeSourceRef.current = 'editor';
+                if (e.key === 'Enter') {
+                  const atEnd = textareaRef.current
+                    ? textareaRef.current.selectionStart >= tema.contenido.length - 1
+                    : false;
+                  if (atEnd) {
+                    programarSincronizacionCursor(true);
+                  }
+                }
+                handleKeyDown(e);
+              }}
+              onKeyUp={(e) => {
+                activeSourceRef.current = 'editor';
+                if (
+                  [
+                    'ArrowUp',
+                    'ArrowDown',
+                    'ArrowLeft',
+                    'ArrowRight',
+                    'PageUp',
+                    'PageDown',
+                    'Home',
+                    'End',
+                  ].includes(e.key)
+                ) {
+                  programarSincronizacionCursor();
+                }
+              }}
+              onClick={() => {
+                activeSourceRef.current = 'editor';
+                programarSincronizacionCursor();
+              }}
+              onScroll={handleEditorScroll}
+              onWheel={() => marcarFuenteScroll('editor')}
               onPaste={handlePaste}
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -1267,7 +1488,13 @@ function EditorTema({
         )}
 
         <div
+          ref={previewRef}
           className={`panel-preview ${modo === 'edit' ? 'panel-preview-impresion-solo' : ''}`}
+          onScroll={handlePreviewScroll}
+          onMouseEnter={() => {
+            activeSourceRef.current = 'preview';
+          }}
+          onWheel={() => marcarFuenteScroll('preview')}
         >
           <div className="preview-encabezado-mini">
             <span>Vista previa formateada</span>
