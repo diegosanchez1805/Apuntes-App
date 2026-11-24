@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Sparkles, ArrowRight, Search, Sigma, GraduationCap, Workflow, Clock, FileText, ChevronDown } from 'lucide-react';
+import { BookOpen, ChevronDown } from 'lucide-react';
 import type { Materia, TarjetaFlashcard } from './types';
 import Sidebar from './components/Sidebar';
 import PanelMateria from './components/PanelMateria';
@@ -478,38 +478,16 @@ const materiasFiltradas = materias.filter((m) =>
         ) : (
           <div className="bienvenida-dashboard">
             <div className="bienvenida-card">
-              <div className="bienvenida-badge">
-                <Sparkles size={16} />
-                <span>Organizador de Apuntes Académicos</span>
-              </div>
-              <h2>¡Te damos la bienvenida a tus Apuntes!</h2>
+              <h2>Tus apuntes</h2>
               <p className="bienvenida-desc">
-                Crea y organiza tus materias, toma notas con formato enriquecido, diagramas Mermaid, fórmulas LaTeX, tarjetas de estudio y mantén tus apuntes sincronizados automáticamente.
+                Elige una materia a la izquierda o busca en todos tus apuntes con Ctrl + K.
               </p>
-
-              {/* Botón directo de búsqueda global */}
-              <div className="bienvenida-busqueda-rapida">
-                <button
-                  type="button"
-                  className="btn-busqueda-dashboard"
-                  onClick={() => setModalBusquedaAbierto(true)}
-                  title="Abrir buscador global (Ctrl + K)"
-                >
-                  <Search size={18} className="icono-busqueda-dash" />
-                  <span className="texto-busqueda-dash">Buscar cualquier concepto, fórmula o apunte...</span>
-                  <kbd className="kbd-busqueda-dash">Ctrl + K</kbd>
-                </button>
-              </div>
 
               {/* Acceso Rápido a Temas Recientes */}
               {temasRecientesValidos.length > 0 && (
                 <div className="seccion-recientes-dashboard">
                   <div className="dashboard-seccion-header">
-                    <div className="seccion-header-titulo">
-                      <Clock size={16} className="icono-seccion-header" />
-                      <h3>Temas recientes</h3>
-                    </div>
-                    <span className="seccion-header-subtitulo">Continúa donde lo dejaste</span>
+                    <h3>Seguir con</h3>
                   </div>
 
                   <div className="grid-temas-recientes">
@@ -544,15 +522,7 @@ const materiasFiltradas = materias.filter((m) =>
                           </span>
                         </div>
 
-                        <div className="reciente-titulo-row">
-                          <FileText size={15} className="icono-archivo-reciente" />
-                          <h4 className="reciente-titulo">{item.temaNombre}</h4>
-                        </div>
-
-                        <div className="reciente-footer">
-                          <span className="reciente-accion-texto">Abrir apunte</span>
-                          <ArrowRight size={13} className="reciente-flecha" />
-                        </div>
+                        <h4 className="reciente-titulo">{item.temaNombre}</h4>
                       </button>
                     ))}
                   </div>
@@ -582,75 +552,10 @@ const materiasFiltradas = materias.filter((m) =>
                 </div>
               )}
 
-              {/* Novedades y Herramientas del Sistema */}
-              <div className="dashboard-seccion-header">
-                <div className="seccion-header-titulo">
-                  <Sparkles size={16} className="icono-seccion-header" />
-                  <h3>Herramientas y Novedades</h3>
-                </div>
-                <span className="seccion-header-subtitulo">Funcionalidades incluidas</span>
-              </div>
-              <div className="caracteristicas-grid">
-                <div className="caracteristica-card">
-                  <div className="caracteristica-icono icono-tabla">
-                    <GraduationCap size={20} />
-                  </div>
-                  <h4>Tarjetas Flashcards</h4>
-                  <p>Modo repaso interactivo con autoevaluación 3D para memorizar antes de exámenes.</p>
-                </div>
-
-                <div className="caracteristica-card">
-                  <div className="caracteristica-icono icono-formato">
-                    <Workflow size={20} />
-                  </div>
-                  <h4>Diagramas Mermaid</h4>
-                  <p>Genera mapas conceptuales, grafos y diagramas de flujo directamente con texto.</p>
-                </div>
-
-                <div className="caracteristica-card">
-                  <div className="caracteristica-icono icono-lista">
-                    <Sigma size={20} />
-                  </div>
-                  <h4>Fórmulas LaTeX</h4>
-                  <p>Renderiza ecuaciones algebraicas, integrales, límites y matrices con KaTeX.</p>
-                </div>
-              </div>
-
-              {materias.length > 0 ? (
-                <div className="bienvenida-accion">
-                  <div className="dashboard-seccion-header">
-                    <div className="seccion-header-titulo">
-                      <BookOpen size={16} className="icono-seccion-header" />
-                      <h3>Tus materias</h3>
-                    </div>
-                    <span className="seccion-header-subtitulo">{materias.length} asignaturas</span>
-                  </div>
-                  <div className="materias-chips">
-                    {materias.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className="chip-materia"
-                        onClick={() => {
-                          setMateriaSeleccionadaId(m.id);
-                          setTemaSeleccionadoId(null);
-                        }}
-                        style={{ borderLeftColor: m.color }}
-                      >
-                        <span
-                          className="chip-color-dot"
-                          style={{ backgroundColor: m.color }}
-                        />
-                        <span>{m.nombre}</span>
-                        <ArrowRight size={14} className="chip-flecha" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
+              {materias.length === 0 && (
                 <div className="bienvenida-sin-materias">
                   <BookOpen size={32} />
-                  <p>Agrega tu primera materia desde la barra lateral izquierda para comenzar.</p>
+                  <p>Escribe el nombre de tu primera materia en la barra lateral para empezar.</p>
                 </div>
               )}
             </div>

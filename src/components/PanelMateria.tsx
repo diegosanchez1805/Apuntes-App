@@ -7,12 +7,9 @@ import {
   Trash2,
   GripVertical,
   BookOpen,
-  Sparkles,
   Edit3,
   PanelLeftClose,
   PanelLeftOpen,
-  Sun,
-  Moon,
   GraduationCap,
   Home,
 } from 'lucide-react';
@@ -44,7 +41,6 @@ function PanelMateria({
   onRenombrarTema,
   onReordenarTemas,
   modoOscuro,
-  onToggleModoOscuro,
   onAbrirFlashcards,
   onIrAlMenuPrincipal,
 }: PanelMateriaProps) {
@@ -109,7 +105,7 @@ function PanelMateria({
               title="Volver al Menú Principal (Inicio)"
             >
               <Home size={15} />
-              <span>Menú Principal</span>
+              <span>Inicio</span>
             </button>
           )}
           {onAbrirFlashcards && (
@@ -120,28 +116,18 @@ function PanelMateria({
               title="Modo Repaso con Tarjetas de Estudio (Flashcards)"
             >
               <GraduationCap size={15} />
-              <span>Modo Repaso</span>
-            </button>
-          )}
-          {onToggleModoOscuro && (
-            <button
-              type="button"
-              className="btn-tema-header"
-              onClick={onToggleModoOscuro}
-              title={modoOscuro ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
-            >
-              {modoOscuro ? <Sun size={15} /> : <Moon size={15} />}
-              <span>{modoOscuro ? "Claro" : "Oscuro"}</span>
+              <span>Repasar</span>
             </button>
           )}
           <button
             type="button"
             className={`btn-toggle-temas ${temasColapsados ? 'activo' : ''}`}
             onClick={() => setTemasColapsados(!temasColapsados)}
-            title={temasColapsados ? "Mostrar lista de temas" : "Ocultar lista de temas para ver más apuntes"}
+            title={temasColapsados ? "Mostrar lista de temas" : "Ocultar lista de temas"}
+            aria-label={temasColapsados ? "Mostrar lista de temas" : "Ocultar lista de temas"}
           >
             {temasColapsados ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-            <span>{temasColapsados ? "Mostrar Temas" : "Ocultar Temas"}</span>
+
           </button>
         </div>
       </header>
@@ -306,8 +292,6 @@ function PanelMateria({
               key={temaSeleccionado.id}
               tema={temaSeleccionado}
               modoOscuro={modoOscuro}
-              onAbrirFlashcards={onAbrirFlashcards}
-              onIrAlMenuPrincipal={onIrAlMenuPrincipal}
               onCambiarContenido={(nuevoContenido) =>
                 onActualizarContenido(materia.id, temaSeleccionado.id, nuevoContenido)
               }
@@ -319,25 +303,8 @@ function PanelMateria({
               </div>
               <h3>Selecciona un tema</h3>
               <p>
-                Haz clic en cualquier tema de la lista izquierda para editar o consultar tus apuntes.
+                Abre un tema de la lista o crea uno nuevo.
               </p>
-              {onIrAlMenuPrincipal && (
-                <button
-                  type="button"
-                  className="btn-volver-menu-principal btn-placeholder-menu"
-                  onClick={onIrAlMenuPrincipal}
-                  title="Volver al Menú Principal (Inicio)"
-                >
-                  <Home size={15} />
-                  <span>Ir al Menú Principal</span>
-                </button>
-              )}
-              <div className="placeholder-tips">
-                <div className="tip-item">
-                  <Sparkles size={16} />
-                  <span>Soporta tablas, listas con viñetas, numeración y negritas.</span>
-                </div>
-              </div>
             </div>
           )}
         </div>

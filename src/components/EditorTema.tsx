@@ -18,8 +18,6 @@ import {
   Eye,
   Copy,
   Check,
-  Clock,
-  FileText,
   Image as ImageIcon,
   Upload,
   Link as LinkIcon,
@@ -28,8 +26,6 @@ import {
   Download,
   Sigma,
   Workflow,
-  GraduationCap,
-  Home,
 } from 'lucide-react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
@@ -48,8 +44,6 @@ interface EditorTemaProps {
   tema: Tema;
   onCambiarContenido: (nuevoContenido: string) => void;
   modoOscuro?: boolean;
-  onAbrirFlashcards?: () => void;
-  onIrAlMenuPrincipal?: () => void;
 }
 
 type ModoVista = 'split' | 'edit' | 'preview';
@@ -216,8 +210,6 @@ function EditorTema({
   tema,
   onCambiarContenido,
   modoOscuro,
-  onAbrirFlashcards,
-  onIrAlMenuPrincipal,
 }: EditorTemaProps) {
   const [modo, setModo] = useState<ModoVista>('split');
   const [copiado, setCopiado] = useState(false);
@@ -256,7 +248,7 @@ function EditorTema({
     minute: '2-digit',
   });
 
-  const { palabras, caracteres, tiempoLectura } = useMemo(() => {
+  const { palabras, tiempoLectura } = useMemo(() => {
     const texto = tema.contenido.trim();
     if (!texto) return { palabras: 0, caracteres: 0, tiempoLectura: 0 };
     const palabrasArr = texto.split(/\s+/).filter(Boolean);
@@ -1192,30 +1184,16 @@ function EditorTema({
       <header className="editor-header-bar">
         <div className="editor-info">
           <div className="editor-titulo-wrapper">
-            <FileText className="icono-titulo" size={18} />
             <h3 className="editor-titulo" title={tema.nombre}>
               {tema.nombre}
             </h3>
           </div>
           <span className="fecha-badge">
-            <Clock size={12} />
             {fechaFormateada}
           </span>
         </div>
 
         <div className="editor-acciones-top">
-          {onIrAlMenuPrincipal && (
-            <button
-              type="button"
-              className="btn-accion-top btn-menu-principal-top"
-              onClick={onIrAlMenuPrincipal}
-              title="Volver al Menú Principal (Inicio)"
-            >
-              <Home size={14} className="icono-home-apunte" />
-              <span className="texto-accion">Menú</span>
-            </button>
-          )}
-
           <div className="grupo-modos" role="group" aria-label="Modo de vista">
             <button
               type="button"
@@ -1246,36 +1224,24 @@ function EditorTema({
             </button>
           </div>
 
-          {onAbrirFlashcards && (
-            <button
-              type="button"
-              className="btn-accion-top btn-repaso-top"
-              onClick={onAbrirFlashcards}
-              title="Modo Repaso con Tarjetas de Estudio (Flashcards)"
-            >
-              <GraduationCap size={15} className="icono-repaso-top" />
-              <span className="texto-accion">Repasar</span>
-            </button>
-          )}
-
           <button
             type="button"
             className="btn-accion-top"
             onClick={handleExportarPDF}
-            title="Exportar a PDF o Imprimir apunte"
+            title="Exportar a PDF o imprimir"
+            aria-label="Exportar a PDF o imprimir"
           >
             <Printer size={14} />
-            <span className="texto-accion">PDF</span>
           </button>
 
           <button
             type="button"
             className="btn-accion-top"
             onClick={handleDescargarMarkdown}
-            title="Descargar apunte en archivo Markdown (.md)"
+            title="Descargar como Markdown (.md)"
+            aria-label="Descargar como Markdown"
           >
             <Download size={14} />
-            <span className="texto-accion">.md</span>
           </button>
 
           <button
@@ -1285,7 +1251,7 @@ function EditorTema({
             title="Copiar contenido de los apuntes"
           >
             {copiado ? <Check size={14} className="icono-verde" /> : <Copy size={14} />}
-            <span>{copiado ? 'Copiado' : 'Copiar'}</span>
+            <span className="sr-only">{copiado ? 'Copiado' : 'Copiar'}</span>
           </button>
         </div>
       </header>
@@ -1496,9 +1462,6 @@ function EditorTema({
           }}
           onWheel={() => marcarFuenteScroll('preview')}
         >
-          <div className="preview-encabezado-mini">
-            <span>Vista previa formateada</span>
-          </div>
           {/* Cabecera para cuando se exporta a PDF o imprime */}
           <div className="print-cabecera-documento">
             <h1 className="print-titulo-tema">{tema.nombre}</h1>
@@ -1517,19 +1480,12 @@ function EditorTema({
           <span className="stat-item">
             <strong>{palabras}</strong> {palabras === 1 ? 'palabra' : 'palabras'}
           </span>
-          <span className="stat-punto">•</span>
-          <span className="stat-item">
-            <strong>{caracteres}</strong> caracteres
-          </span>
           {palabras > 0 && (
             <>
               <span className="stat-punto">•</span>
               <span className="stat-item">~{tiempoLectura} min de lectura</span>
             </>
           )}
-        </div>
-        <div className="status-ayuda">
-          <span>Markdown GFM activo • Soporta imágenes</span>
         </div>
       </footer>
 

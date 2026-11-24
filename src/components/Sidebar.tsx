@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   BookOpen,
   Plus,
@@ -12,6 +12,7 @@ import {
   Sun,
   Moon,
   ShieldCheck,
+  ShieldAlert,
   Download,
   Upload,
   Check,
@@ -20,6 +21,8 @@ import {
 import type { Materia } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { exportarTodasLasImagenes, importarImagenes } from '../utils/imageStore';
+
+const CONSULTA_MOVIL = '(max-width: 768px)';
 
 interface SidebarProps {
   materias: Materia[];
@@ -40,16 +43,8 @@ interface SidebarProps {
   onToggleModoOscuro: () => void;
 }
 
-const PALETA_RAPIDA = [
-  '#4f46e5', // Índigo
-  '#059669', // Esmeralda
-  '#dc2626', // Rojo
-  '#d97706', // Ámbar
-  '#7c3aed', // Violeta
-  '#0891b2', // Cian
-  '#ec4899', // Rosa
-  '#2563eb', // Azul
-];
+// Días sin respaldo a partir de los cuales se muestra el aviso
+const DIAS_RECORDATORIO_RESPALDO = 7;
 
 function obtenerIniciales(nombre: string): string {
   const limpio = nombre.trim();
@@ -79,7 +74,36 @@ function Sidebar({
   modoOscuro,
   onToggleModoOscuro,
 }: SidebarProps) {
-  const [colapsada, setColapsada] = useLocalStorage<boolean>('sidebar-colapsada', false);
+  const [colapsadaEscritorio, setColapsadaEscritorio] = useLocalStorage<boolean>('sidebar-colapsada', false);
+  // En pantallas estrechas la barra se abre como panel superpuesto y empieza cerrada,
+  // sin tocar la preferencia guardada para escritorio.
+  const [esMovil, setEsMovil] = useState(() => window.matchMedia(CONSULTA_MOVIL).matches);
+  const [abiertaMovil, setAbiertaMovil] = useState(false);
+  const colapsada = esMovil ? !abiertaMovil : colapsadaEscritorio;
+  const setColapsada = (valor: boolean) =>
+    esMovil ? setAbiertaMovil(!valor) : setColapsadaEscritorio(valor);
+
+  useEffect(() => {
+    const consulta = window.matchMedia(CONSULTA_MOVIL);
+    const alCambiar = (e: MediaQueryListEvent) => {
+      setEsMovil(e.matches);
+      setAbiertaMovil(false);
+    };
+    consulta.addEventListener('change', alCambiar);
+    return () => consulta.removeEventListener('change', alCambiar);
+  }, []);
+
+  useEffect(() => {
+    if (!esMovil || !abiertaMovil) return;
+    const alPresionar = (e: KeyboardEvent) => e.key === 'Escape' && setAbiertaMovil(false);
+    window.addEventListener('keydown', alPresionar);
+    return () => window.removeEventListener('keydown', alPresionar);
+  }, [esMovil, abiertaMovil]);
+
+  function seleccionarMateria(id: string) {
+    onSeleccionarMateria(id);
+    if (esMovil) setAbiertaMovil(false);
+  }
   const [nuevaMateria, setNuevaMateria] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEditado, setNombreEditado] = useState('');
@@ -93,30 +117,66 @@ function Sidebar({
   const materiasParaRespaldo = todasLasMaterias || materias;
   const totalTemasRespaldo = materiasParaRespaldo.reduce((acc, m) => acc + m.temas.length, 0);
 
+  const [ultimoRespaldo, setUltimoRespaldo] = useLocalStorage<string | null>(
+    'apuntes-ultimo-respaldo',
+    null
+  );
+  // Hora de referencia para calcular los días sin respaldo (se refresca cada hora)
+  const [ahoraMs, setAhoraMs] = useState(() => Date.now());
+  useEffect(() => {
+    const intervalo = setInterval(() => setAhoraMs(Date.now()), 3600000);
+    return () => clearInterval(intervalo);
+  }, []);
+  const diasSinRespaldo = ultimoRespaldo
+    ? Math.max(0, Math.floor((ahoraMs - new Date(ultimoRespaldo).getTime()) / 86400000))
+    : null;
+  const respaldoVencido =
+    totalTemasRespaldo > 0 && (diasSinRespaldo === null || diasSinRespaldo >= DIAS_RECORDATORIO_RESPALDO);
+  const textoUltimoRespaldo =
+    diasSinRespaldo === null
+      ? 'Aún no has hecho ningún respaldo'
+      : diasSinRespaldo === 0
+        ? 'Último respaldo: hoy'
+        : diasSinRespaldo === 1
+          ? 'Último respaldo: ayer'
+          : `Último respaldo: hace ${diasSinRespaldo} días`;
+
+  /**
+   * Genera el archivo .json con todas las materias e imágenes y lo descarga.
+   * Se usa tanto en la exportación manual como en la copia previa a una restauración.
+   */
+  const descargarArchivoRespaldo = async (prefijoArchivo: string) => {
+    const imagenes = await exportarTodasLasImagenes();
+    const datosRespaldo = {
+      app: 'apuntes-app',
+      version: '1.0',
+      fechaExportacion: new Date().toISOString(),
+      materias: materiasParaRespaldo,
+      imagenes,
+    };
+
+    const ahora = new Date();
+    const fechaHoy = ahora.toISOString().split('T')[0];
+    const horaHoy = ahora.toTimeString().slice(0, 5).replace(':', '-');
+    const blob = new Blob([JSON.stringify(datosRespaldo, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${prefijoArchivo}_${fechaHoy}_${horaHoy}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setUltimoRespaldo(ahora.toISOString());
+  };
+
   const handleDescargarRespaldo = async () => {
     try {
       setExportando(true);
-      const imagenes = await exportarTodasLasImagenes();
-      const datosRespaldo = {
-        app: 'apuntes-app',
-        version: '1.0',
-        fechaExportacion: new Date().toISOString(),
-        materias: materiasParaRespaldo,
-        imagenes,
-      };
-
-      const fechaHoy = new Date().toISOString().split('T')[0];
-      const blob = new Blob([JSON.stringify(datosRespaldo, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `respaldo_apuntes_${fechaHoy}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await descargarArchivoRespaldo('respaldo_apuntes');
 
       setMensajeRespaldo('¡Copia de seguridad descargada con éxito!');
       setTimeout(() => setMensajeRespaldo(null), 3000);
@@ -149,11 +209,24 @@ function Sidebar({
         const confirmar = window.confirm(
           `El respaldo contiene ${materiasImportadas.length} materias y ${numTemas} temas.\n\n` +
           `¿Deseas restaurar este respaldo?\n` +
-          `• Aceptar: Restaurar y aplicar este respaldo.\n` +
+          `Antes se descargará automáticamente una copia de tus apuntes actuales ` +
+          `(archivo "antes_de_restaurar_...json") por si necesitas volver atrás.\n\n` +
+          `• Aceptar: Guardar copia actual y restaurar este respaldo.\n` +
           `• Cancelar: No realizar cambios.`
         );
 
         if (!confirmar) return;
+
+        // Copia de seguridad del estado actual antes de sobrescribirlo
+        try {
+          await descargarArchivoRespaldo('antes_de_restaurar');
+        } catch (errCopia) {
+          console.error('Error al crear la copia previa a la restauración:', errCopia);
+          alert(
+            'No se pudo crear la copia de tus apuntes actuales, así que la restauración se canceló para no perder nada.'
+          );
+          return;
+        }
 
         if (datos.imagenes && typeof datos.imagenes === 'object') {
           await importarImagenes(datos.imagenes);
@@ -210,7 +283,13 @@ function Sidebar({
   }
 
   return (
-    <aside className={`sidebar ${colapsada ? 'sidebar-colapsada' : ''}`}>
+    <>
+    {esMovil && abiertaMovil && (
+      <div className="sidebar-fondo-movil" onClick={() => setAbiertaMovil(false)} aria-hidden="true" />
+    )}
+    <aside
+      className={`sidebar ${colapsada ? 'sidebar-colapsada' : ''} ${esMovil && abiertaMovil ? 'sidebar-movil-abierta' : ''}`}
+    >
       {/* Encabezado Principal */}
       <div className="sidebar-header">
         {!colapsada ? (
@@ -277,7 +356,8 @@ function Sidebar({
             </button>
           )}
 
-          {/* Buscador */}
+          {/* Filtro de materias: solo cuando la lista ya es larga */}
+          {(materias.length > 6 || busqueda) && (
           <div className="sidebar-buscador-wrapper">
             <Search size={15} className="icono-buscador" />
             <input
@@ -298,6 +378,7 @@ function Sidebar({
               </button>
             )}
           </div>
+          )}
 
           {/* Formulario para agregar nueva materia */}
           <div className="agregar-materia">
@@ -355,13 +436,10 @@ function Sidebar({
                       }
                       setArrastrandoId(null);
                     }}
-                    onClick={() => editandoId !== materia.id && onSeleccionarMateria(materia.id)}
+                    onClick={() => editandoId !== materia.id && seleccionarMateria(materia.id)}
                     className={`item-materia ${esSeleccionada ? 'materia-activa' : ''} ${
                       esArrastrado ? 'arrastrando' : ''
                     }`}
-                    style={{
-                      borderLeftColor: materia.color,
-                    }}
                   >
                     <div className="materia-drag-handle" title="Arrastrar para reordenar">
                       <GripVertical size={14} />
@@ -429,46 +507,25 @@ function Sidebar({
             )}
           </ul>
 
-          {/* Paleta rápida de muestra */}
-          <div className="sidebar-paleta-rapida">
-            <span className="paleta-label">Colores sugeridos</span>
-            <div className="paleta-swatches">
-              {PALETA_RAPIDA.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className="swatch-btn"
-                  style={{ backgroundColor: c }}
-                  title={`Aplicar ${c} a materia seleccionada`}
-                  onClick={() => {
-                    if (materiaSeleccionadaId) {
-                      onCambiarColorMateria(materiaSeleccionadaId, c);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
           {/* Toggle de Modo Oscuro / Claro y Copias de Seguridad en vista expandida */}
           <div className="sidebar-tema-seccion">
             <button
               type="button"
-              className="btn-tema-toggle btn-respaldo-sidebar"
+              className={`btn-tema-toggle btn-respaldo-sidebar ${respaldoVencido ? 'respaldo-vencido' : ''}`}
               onClick={() => setMostrarModalRespaldo(true)}
-              title="Copias de Seguridad (Exportar / Importar)"
+              title={`Copia de seguridad · ${textoUltimoRespaldo}`}
             >
-              <ShieldCheck size={15} />
-              <span>Copia de Seguridad</span>
+              {respaldoVencido ? <ShieldAlert size={15} /> : <ShieldCheck size={15} />}
+              <span>{respaldoVencido ? 'Haz una copia' : 'Copia de seguridad'}</span>
             </button>
             <button
               type="button"
-              className="btn-tema-toggle"
+              className="btn-tema-toggle btn-modo-icono"
               onClick={onToggleModoOscuro}
-              title={modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+              title={modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              aria-label={modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
               {modoOscuro ? <Sun size={15} /> : <Moon size={15} />}
-              <span>{modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
             </button>
           </div>
         </>
@@ -515,7 +572,7 @@ function Sidebar({
                   <button
                     type="button"
                     className={`item-materia-mini ${esSeleccionada ? 'materia-mini-activa' : ''}`}
-                    onClick={() => onSeleccionarMateria(materia.id)}
+                    onClick={() => seleccionarMateria(materia.id)}
                     title={`${materia.nombre} • ${materia.temas.length} ${materia.temas.length === 1 ? 'tema' : 'temas'}`}
                     style={{
                       borderLeftColor: esSeleccionada ? materia.color : 'transparent',
@@ -546,11 +603,11 @@ function Sidebar({
           <div className="sidebar-footer-colapsada">
             <button
               type="button"
-              className="btn-mini-tema-toggle"
+              className={`btn-mini-tema-toggle ${respaldoVencido ? 'respaldo-vencido' : ''}`}
               onClick={() => setMostrarModalRespaldo(true)}
-              title="Copias de Seguridad (Exportar / Importar)"
+              title={`Copias de Seguridad (Exportar / Importar) • ${textoUltimoRespaldo}`}
             >
-              <ShieldCheck size={17} />
+              {respaldoVencido ? <ShieldAlert size={17} /> : <ShieldCheck size={17} />}
             </button>
             <button
               type="button"
@@ -601,6 +658,15 @@ function Sidebar({
                 Guarda una copia completa de todos tus apuntes, materias e imágenes en un archivo local <strong>.JSON</strong>, o restaura una copia anterior en cualquier momento.
               </p>
 
+              <div className={`estado-ultimo-respaldo ${respaldoVencido ? 'respaldo-vencido' : ''}`}>
+                {respaldoVencido ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+                <span>
+                  {textoUltimoRespaldo}
+                  {respaldoVencido &&
+                    '. Te recomendamos descargar una copia y guardarla en OneDrive o en otra carpeta segura.'}
+                </span>
+              </div>
+
               {mensajeRespaldo && (
                 <div className="alerta-respaldo-exito">
                   <Check size={16} />
@@ -636,7 +702,7 @@ function Sidebar({
                   </div>
                   <h4>Restaurar Copia</h4>
                   <p>
-                    Carga un archivo de respaldo previo (<code>.json</code>) para recuperar o migrar tus apuntes.
+                    Carga un archivo de respaldo previo (<code>.json</code>) para recuperar o migrar tus apuntes. Antes se descargará una copia de tus apuntes actuales.
                   </p>
                   <input
                     ref={inputArchivoRespaldoRef}
@@ -670,6 +736,7 @@ function Sidebar({
         </div>
       )}
     </aside>
+    </>
   );
 }
 
